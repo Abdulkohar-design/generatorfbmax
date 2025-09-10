@@ -597,11 +597,12 @@ export const generateEnglishText = async (category: TextCategory, apiKey: string
             const prompt = `Buat 4 teks unik dan menarik dalam Bahasa Inggris dengan tema "${category}". Teks harus:
 - Relevan dengan kategori yang dipilih
 - Menarik dan engaging untuk media sosial
-- Panjang 2-4 kalimat
+- Panjang maksimal 80 karakter (termasuk spasi)
 - Original dan tidak klise
 - Sesuai untuk postingan inspiratif atau informatif
+- Bisa berupa kutipan pendek, pepatah, atau kalimat motivasi
 
-Format hasilnya sebagai array JSON dari string.`;
+Format hasilnya sebagai array JSON dari string. Pastikan setiap teks tidak lebih dari 80 karakter.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -661,7 +662,7 @@ export const translateText = async (englishText: string, apiKey: string): Promis
 
     while (attempt < maxRetries) {
         try {
-            const prompt = `Terjemahkan teks berikut ke dalam Bahasa Indonesia dengan cara yang natural dan mudah dipahami. Pertahankan makna asli dan gaya bahasa yang menarik:
+            const prompt = `Terjemahkan teks berikut ke dalam Bahasa Indonesia. Buat terjemahan yang ringkas dan natural, maksimal 85 karakter termasuk spasi. Pertahankan makna asli tapi buat lebih ringkas jika perlu:
 
 "${englishText}"
 
