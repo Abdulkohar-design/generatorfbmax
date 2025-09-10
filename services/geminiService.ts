@@ -442,27 +442,51 @@ export const generateImageWithImagen = async (prompt: string, aspectRatio: strin
     }
     const ai = new GoogleGenAI({ apiKey });
 
-    try {
-        const response = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: prompt,
-            config: {
-              numberOfImages: 1,
-              outputMimeType: 'image/png',
-              aspectRatio: aspectRatio,
-            },
-        });
+    const maxRetries = 5;
+    let attempt = 0;
 
-        if (!response.generatedImages || response.generatedImages.length === 0) {
-            throw new Error("AI tidak mengembalikan gambar.");
+    while (attempt < maxRetries) {
+        try {
+            const response = await ai.models.generateImages({
+                model: 'imagen-4.0-generate-001',
+                prompt: prompt,
+                config: {
+                  numberOfImages: 1,
+                  outputMimeType: 'image/png',
+                  aspectRatio: aspectRatio,
+                },
+            });
+
+            if (!response.generatedImages || response.generatedImages.length === 0) {
+                throw new Error("AI tidak mengembalikan gambar.");
+            }
+
+            const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+            return `data:image/png;base64,${base64ImageBytes}`;
+
+        } catch (error: any) {
+            console.error("Error generating image with Imagen:", error);
+
+            // Check if it's a quota exceeded error (429)
+            if (error?.error?.code === 429) {
+                attempt++;
+                if (attempt >= maxRetries) {
+                    throw new Error("Kuota API Gemini telah habis. Silakan coba lagi nanti atau upgrade ke paket berbayar.");
+                }
+
+                // Exponential backoff: wait 1s, 2s, 4s, 8s, 16s
+                const delay = Math.pow(2, attempt - 1) * 1000;
+                console.log(`Quota exceeded, retrying in ${delay}ms... (attempt ${attempt}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+
+            // For other errors, throw immediately
+            throw new Error("Gagal menghasilkan gambar. Silakan periksa konsol.");
         }
-
-        const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-        return `data:image/png;base64,${base64ImageBytes}`;
-    } catch (error) {
-        console.error("Error generating image with Imagen:", error);
-        throw new Error("Gagal menghasilkan gambar. Silakan periksa konsol.");
     }
+
+    throw new Error("Gagal menghasilkan gambar setelah beberapa percobaan. Silakan periksa konsol.");
 };
 
 export const editImageWithGemini = async (files: File[], prompt: string, apiKey: string): Promise<string> => {
@@ -471,32 +495,55 @@ export const editImageWithGemini = async (files: File[], prompt: string, apiKey:
     }
     const ai = new GoogleGenAI({ apiKey });
 
-    try {
-        const imageParts = await Promise.all(files.map(file => fileToGenerativePart(file)));
+    const maxRetries = 5;
+    let attempt = 0;
 
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image-preview',
-          contents: {
-            parts: [...imageParts, { text: prompt }],
-          },
-          config: {
-              responseModalities: [Modality.IMAGE, Modality.TEXT],
-          },
-        });
-        
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            return `data:image/png;base64,${base64ImageBytes}`;
-          }
+    while (attempt < maxRetries) {
+        try {
+            const imageParts = await Promise.all(files.map(file => fileToGenerativePart(file)));
+
+            const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash-image-preview',
+              contents: {
+                parts: [...imageParts, { text: prompt }],
+              },
+              config: {
+                  responseModalities: [Modality.IMAGE, Modality.TEXT],
+              },
+            });
+
+            for (const part of response.candidates[0].content.parts) {
+              if (part.inlineData) {
+                const base64ImageBytes: string = part.inlineData.data;
+                return `data:image/png;base64,${base64ImageBytes}`;
+              }
+            }
+
+            throw new Error("AI tidak mengembalikan gambar yang diedit.");
+
+        } catch (error: any) {
+            console.error("Error editing image with Gemini:", error);
+
+            // Check if it's a quota exceeded error (429)
+            if (error?.error?.code === 429) {
+                attempt++;
+                if (attempt >= maxRetries) {
+                    throw new Error("Kuota API Gemini telah habis. Silakan coba lagi nanti atau upgrade ke paket berbayar.");
+                }
+
+                // Exponential backoff: wait 1s, 2s, 4s, 8s, 16s
+                const delay = Math.pow(2, attempt - 1) * 1000;
+                console.log(`Quota exceeded, retrying in ${delay}ms... (attempt ${attempt}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+
+            // For other errors, throw immediately
+            throw new Error("Gagal mengedit gambar. Silakan periksa konsol.");
         }
-
-        throw new Error("AI tidak mengembalikan gambar yang diedit.");
-
-    } catch (error) {
-        console.error("Error editing image with Gemini:", error);
-        throw new Error("Gagal mengedit gambar. Silakan periksa konsol.");
     }
+
+    throw new Error("Gagal mengedit gambar setelah beberapa percobaan. Silakan periksa konsol.");
 };
 
 export const generateImagePromptSuggestions = async (apiKey: string): Promise<string[]> => {
