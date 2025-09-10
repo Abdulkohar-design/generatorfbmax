@@ -473,9 +473,11 @@ const TextGenerator: React.FC<any> = ({
                                 {translatedTexts[index] ? (
                                     <div>
                                         <div className="bg-white dark:bg-slate-700 p-3 rounded-md border border-slate-200 dark:border-slate-600">
-                                            <p className="text-sm text-slate-800 dark:text-slate-200 mb-2">{text}</p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400 italic">
-                                                <strong>Artinya:</strong> {translatedTexts[index]}
+                                            <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+                                                <span className="font-medium">{text}</span>
+                                                <span className="text-slate-600 dark:text-slate-400 italic ml-1">
+                                                    <strong>Artinya:</strong>"{translatedTexts[index]}"
+                                                </span>
                                             </p>
                                         </div>
                                         <button
@@ -488,14 +490,16 @@ const TextGenerator: React.FC<any> = ({
                                 ) : (
                                     <div>
                                         <div className="bg-white dark:bg-slate-700 p-3 rounded-md border border-slate-200 dark:border-slate-600">
-                                            <p className="text-sm text-slate-800 dark:text-slate-200 mb-2">{text}</p>
-                                            <button
-                                                onClick={() => handleTranslateText(text, index)}
-                                                disabled={isTranslating}
-                                                className="w-full flex items-center justify-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900/80 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
-                                            >
-                                                {isTranslating ? 'Menerjemahkan...' : 'Terjemahkan ke Bahasa Indonesia'}
-                                            </button>
+                                            <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+                                                <span className="font-medium">{text}</span>
+                                                <button
+                                                    onClick={() => handleTranslateText(text, index)}
+                                                    disabled={isTranslating}
+                                                    className="ml-2 px-2 py-1 text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900/80 disabled:bg-slate-400 disabled:cursor-not-allowed transition inline-block"
+                                                >
+                                                    {isTranslating ? 'Menerjemahkan...' : 'Terjemahkan'}
+                                                </button>
+                                            </p>
                                         </div>
                                         <button
                                             onClick={() => handleCopyText(text)}
