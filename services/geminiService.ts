@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import type { GeneratedMetadata, ReactionStyle, OutputLength, VeoPrompts, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory } from '../types';
+import type { GeneratedMetadata, ReactionStyle, OutputLength, VeoPrompts, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, TextCategory, GeneratedText } from '../types';
 
 const fileToGenerativePart = async (file: File) => {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
@@ -581,4 +581,120 @@ export const generateImagePromptSuggestions = async (apiKey: string): Promise<st
         console.error("Error generating prompt suggestions:", error);
         throw new Error("Gagal menghasilkan saran prompt. Silakan periksa konsol.");
     }
+};
+
+export const generateEnglishText = async (category: TextCategory, apiKey: string): Promise<string[]> => {
+    if (!apiKey) {
+        throw new Error("API Key Gemini diperlukan.");
+    }
+    const ai = new GoogleGenAI({ apiKey });
+
+    const maxRetries = 5;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+        try {
+            const prompt = `Buat 4 teks unik dan menarik dalam Bahasa Inggris dengan tema "${category}". Teks harus:
+- Relevan dengan kategori yang dipilih
+- Menarik dan engaging untuk media sosial
+- Panjang 2-4 kalimat
+- Original dan tidak klise
+- Sesuai untuk postingan inspiratif atau informatif
+
+Format hasilnya sebagai array JSON dari string.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: { parts: [{ text: prompt }] },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            texts: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING }
+                            }
+                        },
+                        required: ["texts"]
+                    }
+                }
+            });
+
+            const jsonString = response.text.trim();
+            const parsedJson = JSON.parse(jsonString);
+            return parsedJson.texts || [];
+
+        } catch (error: any) {
+            console.error("Error generating English text:", error);
+
+            // Check if it's a quota exceeded error (429)
+            if (error?.error?.code === 429) {
+                attempt++;
+                if (attempt >= maxRetries) {
+                    throw new Error("Kuota API Gemini telah habis. Silakan coba lagi nanti atau upgrade ke paket berbayar.");
+                }
+
+                // Exponential backoff: wait 1s, 2s, 4s, 8s, 16s
+                const delay = Math.pow(2, attempt - 1) * 1000;
+                console.log(`Quota exceeded, retrying in ${delay}ms... (attempt ${attempt}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+
+            // For other errors, throw immediately
+            throw new Error("Gagal menghasilkan teks bahasa Inggris. Silakan periksa konsol.");
+        }
+    }
+
+    throw new Error("Gagal menghasilkan teks bahasa Inggris setelah beberapa percobaan. Silakan periksa konsol.");
+};
+
+export const translateText = async (englishText: string, apiKey: string): Promise<string> => {
+    if (!apiKey) {
+        throw new Error("API Key Gemini diperlukan.");
+    }
+    const ai = new GoogleGenAI({ apiKey });
+
+    const maxRetries = 5;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+        try {
+            const prompt = `Terjemahkan teks berikut ke dalam Bahasa Indonesia dengan cara yang natural dan mudah dipahami. Pertahankan makna asli dan gaya bahasa yang menarik:
+
+"${englishText}"
+
+Berikan hanya terjemahan saja tanpa penjelasan tambahan.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: { parts: [{ text: prompt }] }
+            });
+
+            return response.text.trim();
+
+        } catch (error: any) {
+            console.error("Error translating text:", error);
+
+            // Check if it's a quota exceeded error (429)
+            if (error?.error?.code === 429) {
+                attempt++;
+                if (attempt >= maxRetries) {
+                    throw new Error("Kuota API Gemini telah habis. Silakan coba lagi nanti atau upgrade ke paket berbayar.");
+                }
+
+                // Exponential backoff: wait 1s, 2s, 4s, 8s, 16s
+                const delay = Math.pow(2, attempt - 1) * 1000;
+                console.log(`Quota exceeded, retrying in ${delay}ms... (attempt ${attempt}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+
+            // For other errors, throw immediately
+            throw new Error("Gagal menerjemahkan teks. Silakan periksa konsol.");
+        }
+    }
+
+    throw new Error("Gagal menerjemahkan teks setelah beberapa percobaan. Silakan periksa konsol.");
 };

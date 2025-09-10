@@ -3,8 +3,8 @@ import { GoogleGenAI, Chat } from "@google/genai";
 import { FileUpload } from './components/FileUpload';
 import { MetadataForm } from './components/MetadataForm';
 import { FacebookPreview } from './components/FacebookPreview';
-import { generateFacebookMetadata, generateReactionCaption, generateImagePrompt, generateVeoVideoPrompts, analyzeToneAndAudience, generateImageToVideoPrompt, generateRepurposingIdeas, generateQuotes, generateImageWithImagen, editImageWithGemini, generateImagePromptSuggestions } from './services/geminiService';
-import type { GeneratedMetadata, EditableMetadata, ReactionStyle, OutputLength, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, ChatMessage, ActiveTab } from './types';
+import { generateFacebookMetadata, generateReactionCaption, generateImagePrompt, generateVeoVideoPrompts, analyzeToneAndAudience, generateImageToVideoPrompt, generateRepurposingIdeas, generateQuotes, generateImageWithImagen, editImageWithGemini, generateImagePromptSuggestions, generateEnglishText, translateText } from './services/geminiService';
+import type { GeneratedMetadata, EditableMetadata, ReactionStyle, OutputLength, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, ChatMessage, ActiveTab, TextCategory, GeneratedText } from './types';
 import { SparklesIcon, CopyIcon, WandIcon, VideoIcon, TargetIcon, LightbulbIcon, TagIcon, ImageToVideoIcon, KeyIcon, ShareIcon, InstagramIcon, TikTokIcon, XIcon, LinkedInIcon, ChatBubbleIcon, QuoteIcon, DownloadIcon, FacebookIcon, ImageIcon, PencilIcon, SendIcon } from './components/icons';
 
 type ActiveImageGenTab = 'create' | 'edit';
@@ -401,6 +401,117 @@ const AIChat: React.FC<{
     );
 };
 
+const TextGenerator: React.FC<any> = ({
+    apiKey, textCategory, setTextCategory, handleGenerateEnglishTexts, isGeneratingTexts,
+    generatedTexts, handleTranslateText, isTranslating, translatedTexts, handleCopyText
+}) => (
+    <div className="w-full max-w-4xl mx-auto space-y-8">
+        <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight">Generator Teks & Terjemahan</h2>
+            <p className="mt-2 text-lg text-slate-600 dark:text-slate-400">
+                Hasilkan teks dalam bahasa Inggris dan terjemahkannya ke bahasa Indonesia
+            </p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
+            <h3 className="text-xl font-semibold mb-4">1. Pilih Kategori & Hasilkan Teks</h3>
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kategori Teks</label>
+                    <select
+                        value={textCategory}
+                        onChange={(e) => setTextCategory(e.target.value as TextCategory)}
+                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option>Motivasi</option>
+                        <option>Bisnis</option>
+                        <option>Pendidikan</option>
+                        <option>Kesehatan</option>
+                        <option>Teknologi</option>
+                        <option>Seni & Kreativitas</option>
+                        <option>Hubungan</option>
+                        <option>Kehidupan Sehari-hari</option>
+                        <option>Inspirasi</option>
+                        <option>Humor</option>
+                        <option>Renungan</option>
+                        <option>Karir</option>
+                        <option>Keuangan</option>
+                        <option>Lingkungan</option>
+                        <option>Sosial</option>
+                        <option>Olahraga</option>
+                    </select>
+                </div>
+                <button
+                    onClick={handleGenerateEnglishTexts}
+                    disabled={!apiKey || isGeneratingTexts}
+                    className="w-full sm:w-auto flex items-center justify-center px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-400 disabled:cursor-not-allowed transition self-end"
+                >
+                    {isGeneratingTexts ? 'Menghasilkan...' : 'Hasilkan Teks'}
+                </button>
+            </div>
+            {!apiKey && <p className="text-xs text-yellow-600 dark:text-yellow-400 -mt-4 mb-4 text-center"><strong>Peringatan:</strong> Masukkan API Key untuk menggunakan fitur ini.</p>}
+        </div>
+
+        {isGeneratingTexts && (
+            <div className="text-center p-8 space-y-3">
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-slate-500">AI sedang menulis teks dalam bahasa Inggris...</p>
+            </div>
+        )}
+
+        {generatedTexts.length > 0 && (
+            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50 space-y-6">
+                <h3 className="text-xl font-semibold">2. Hasil Teks & Terjemahan</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {generatedTexts.map((text: string, index: number) => (
+                        <div key={index} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg space-y-4">
+                            <div>
+                                <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2 flex items-center">
+                                    <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs mr-2">{index + 1}</span>
+                                    Bahasa Inggris
+                                </h4>
+                                <p className="text-sm text-slate-800 dark:text-slate-200">{text}</p>
+                                <button
+                                    onClick={() => handleCopyText(text)}
+                                    className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
+                                >
+                                    Salin
+                                </button>
+                            </div>
+
+                            <div>
+                                <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2 flex items-center">
+                                    <span className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs mr-2">ID</span>
+                                    Bahasa Indonesia
+                                </h4>
+                                {translatedTexts[index] ? (
+                                    <div>
+                                        <p className="text-sm text-slate-800 dark:text-slate-200">{translatedTexts[index]}</p>
+                                        <button
+                                            onClick={() => handleCopyText(translatedTexts[index])}
+                                            className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
+                                        >
+                                            Salin
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => handleTranslateText(text, index)}
+                                        disabled={isTranslating}
+                                        className="w-full flex items-center justify-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900/80 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
+                                    >
+                                        {isTranslating ? 'Menerjemahkan...' : 'Terjemahkan'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+    </div>
+);
+
 
 const App: React.FC = () => {
   // State Umum
@@ -470,6 +581,13 @@ const App: React.FC = () => {
   const [isGeneratingVeoPrompt, setIsGeneratingVeoPrompt] = useState<boolean>(false);
   const [veoPrompts, setVeoPrompts] = useState<string>('');
   const [veoCopySuccess, setVeoCopySuccess] = useState<boolean>(false);
+
+  // State untuk Generator Teks
+  const [textCategory, setTextCategory] = useState<TextCategory>('Motivasi');
+  const [generatedTexts, setGeneratedTexts] = useState<string[]>([]);
+  const [translatedTexts, setTranslatedTexts] = useState<string[]>([]);
+  const [isGeneratingTexts, setIsGeneratingTexts] = useState<boolean>(false);
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
 
   useEffect(() => {
     const savedApiKey = localStorage.getItem('geminiApiKey');
@@ -829,6 +947,46 @@ const App: React.FC = () => {
     link.download = filename;
     link.click();
   };
+
+  const handleGenerateEnglishTexts = async () => {
+    if (!apiKey) {
+      setError('Silakan masukkan API Key Gemini Anda di header.');
+      return;
+    }
+    setIsGeneratingTexts(true);
+    setError(null);
+    setGeneratedTexts([]);
+    setTranslatedTexts([]);
+    try {
+      const texts = await generateEnglishText(textCategory, apiKey);
+      setGeneratedTexts(texts);
+    } catch (err: any) {
+      setError(err.message || 'Gagal menghasilkan teks bahasa Inggris.');
+    } finally {
+      setIsGeneratingTexts(false);
+    }
+  };
+
+  const handleTranslateText = async (englishText: string, index: number) => {
+    if (!apiKey) return;
+    setIsTranslating(true);
+    setError(null);
+    try {
+      const translatedText = await translateText(englishText, apiKey);
+      const newTranslatedTexts = [...translatedTexts];
+      newTranslatedTexts[index] = translatedText;
+      setTranslatedTexts(newTranslatedTexts);
+    } catch (err: any) {
+      setError(err.message || 'Gagal menerjemahkan teks.');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // You could add a toast notification here if desired
+  };
   
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !chatSession || isChatting) return;
@@ -895,6 +1053,9 @@ const App: React.FC = () => {
             <button onClick={() => setActiveTab('chat')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'chat' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                 <ChatBubbleIcon className="w-5 h-5 mr-2" /> Asisten AI
             </button>
+            <button onClick={() => setActiveTab('text')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'text' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+                <QuoteIcon className="w-5 h-5 mr-2" /> Generator Teks
+            </button>
         </nav>
       </header>
 
@@ -933,14 +1094,18 @@ const App: React.FC = () => {
             file: veoFile,
             previewUrl: veoPreviewUrl
         }} />}
-        {activeTab === 'chat' && <AIChat 
-            history={chatHistory} 
-            input={chatInput} 
-            setInput={setChatInput} 
-            onSend={handleSendMessage} 
+        {activeTab === 'chat' && <AIChat
+            history={chatHistory}
+            input={chatInput}
+            setInput={setChatInput}
+            onSend={handleSendMessage}
             isLoading={isChatting}
             apiKey={apiKey}
         />}
+        {activeTab === 'text' && <TextGenerator {...{
+            apiKey, textCategory, setTextCategory, handleGenerateEnglishTexts, isGeneratingTexts,
+            generatedTexts, handleTranslateText, isTranslating, translatedTexts, handleCopyText
+        }} />}
 
       </main>
     </div>

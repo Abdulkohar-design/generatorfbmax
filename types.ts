@@ -43,9 +43,16 @@ export interface ImageToVideoResult {
 
 export type QuoteCategory = 'Inspirasi' | 'Cinta' | 'Motivasi' | 'Humor' | 'Renungan' | 'Kesuksesan' | 'Kehidupan' | 'Persahabatan' | 'Bijak' | 'Seni';
 
+export type TextCategory = 'Motivasi' | 'Bisnis' | 'Pendidikan' | 'Kesehatan' | 'Teknologi' | 'Seni & Kreativitas' | 'Hubungan' | 'Kehidupan Sehari-hari' | 'Inspirasi' | 'Humor' | 'Renungan' | 'Karir' | 'Keuangan' | 'Lingkungan' | 'Sosial' | 'Olahraga';
+
+export interface GeneratedText {
+  english: string;
+  indonesian: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'model';
   parts: { text: string }[];
 }
 
-export type ActiveTab = 'content' | 'quotes' | 'image' | 'videoToVeo' | 'chat';
+export type ActiveTab = 'content' | 'quotes' | 'image' | 'videoToVeo' | 'chat' | 'text';
