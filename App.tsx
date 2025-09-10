@@ -403,7 +403,7 @@ const AIChat: React.FC<{
 
 const TextGenerator: React.FC<any> = ({
     apiKey, textCategory, setTextCategory, handleGenerateEnglishTexts, isGeneratingTexts,
-    generatedTexts, handleTranslateText, isTranslating, translatedTexts, handleCopyText
+    generatedTexts, handleCopyText
 }) => (
     <div className="w-full max-w-4xl mx-auto space-y-8">
         <div className="text-center">
@@ -470,45 +470,20 @@ const TextGenerator: React.FC<any> = ({
                                     <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs mr-2">{index + 1}</span>
                                     Teks Lengkap
                                 </h4>
-                                {translatedTexts[index] ? (
-                                    <div>
-                                        <div className="bg-white dark:bg-slate-700 p-3 rounded-md border border-slate-200 dark:border-slate-600">
-                                            <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-                                                <span className="font-medium">{text}</span>
-                                                <span className="text-slate-600 dark:text-slate-400 italic ml-1">
-                                                    <strong>Artinya:</strong>"{translatedTexts[index]}"
-                                                </span>
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => handleCopyText(`${text}\n\nArtinya: ${translatedTexts[index]}`)}
-                                            className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
-                                        >
-                                            Salin Teks Lengkap
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <div className="bg-white dark:bg-slate-700 p-3 rounded-md border border-slate-200 dark:border-slate-600">
-                                            <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-                                                <span className="font-medium">{text}</span>
-                                                <button
-                                                    onClick={() => handleTranslateText(text, index)}
-                                                    disabled={isTranslating}
-                                                    className="ml-2 px-2 py-1 text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900/80 disabled:bg-slate-400 disabled:cursor-not-allowed transition inline-block"
-                                                >
-                                                    {isTranslating ? 'Menerjemahkan...' : 'Terjemahkan'}
-                                                </button>
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => handleCopyText(text)}
-                                            className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
-                                        >
-                                            Salin Teks Inggris
-                                        </button>
-                                    </div>
-                                )}
+                                <div className="bg-white dark:bg-slate-700 p-3 rounded-md border border-slate-200 dark:border-slate-600">
+                                    <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+                                        <span className="font-medium">{generatedTexts[index].english}</span>
+                                        <span className="text-slate-600 dark:text-slate-400 italic ml-1">
+                                            <strong>Artinya:</strong>"{generatedTexts[index].indonesian}"
+                                        </span>
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => handleCopyText(`${generatedTexts[index].english} Artinya:"${generatedTexts[index].indonesian}"`)}
+                                    className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
+                                >
+                                    Salin Teks Lengkap
+                                </button>
                             </div>
                         </div>
                     ))}
@@ -590,10 +565,8 @@ const App: React.FC = () => {
 
   // State untuk Generator Teks
   const [textCategory, setTextCategory] = useState<TextCategory>('Motivasi');
-  const [generatedTexts, setGeneratedTexts] = useState<string[]>([]);
-  const [translatedTexts, setTranslatedTexts] = useState<string[]>([]);
+  const [generatedTexts, setGeneratedTexts] = useState<GeneratedText[]>([]);
   const [isGeneratingTexts, setIsGeneratingTexts] = useState<boolean>(false);
-  const [isTranslating, setIsTranslating] = useState<boolean>(false);
 
   useEffect(() => {
     const savedApiKey = localStorage.getItem('geminiApiKey');
@@ -962,30 +935,13 @@ const App: React.FC = () => {
     setIsGeneratingTexts(true);
     setError(null);
     setGeneratedTexts([]);
-    setTranslatedTexts([]);
     try {
       const texts = await generateEnglishText(textCategory, apiKey);
       setGeneratedTexts(texts);
     } catch (err: any) {
-      setError(err.message || 'Gagal menghasilkan teks bahasa Inggris.');
+      setError(err.message || 'Gagal menghasilkan teks bilingual.');
     } finally {
       setIsGeneratingTexts(false);
-    }
-  };
-
-  const handleTranslateText = async (englishText: string, index: number) => {
-    if (!apiKey) return;
-    setIsTranslating(true);
-    setError(null);
-    try {
-      const translatedText = await translateText(englishText, apiKey);
-      const newTranslatedTexts = [...translatedTexts];
-      newTranslatedTexts[index] = translatedText;
-      setTranslatedTexts(newTranslatedTexts);
-    } catch (err: any) {
-      setError(err.message || 'Gagal menerjemahkan teks.');
-    } finally {
-      setIsTranslating(false);
     }
   };
 
@@ -1110,7 +1066,7 @@ const App: React.FC = () => {
         />}
         {activeTab === 'text' && <TextGenerator {...{
             apiKey, textCategory, setTextCategory, handleGenerateEnglishTexts, isGeneratingTexts,
-            generatedTexts, handleTranslateText, isTranslating, translatedTexts, handleCopyText
+            generatedTexts, handleCopyText
         }} />}
 
       </main>

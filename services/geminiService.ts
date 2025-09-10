@@ -583,7 +583,7 @@ export const generateImagePromptSuggestions = async (apiKey: string): Promise<st
     }
 };
 
-export const generateEnglishText = async (category: TextCategory, apiKey: string): Promise<string[]> => {
+export const generateEnglishText = async (category: TextCategory, apiKey: string): Promise<GeneratedText[]> => {
     if (!apiKey) {
         throw new Error("API Key Gemini diperlukan.");
     }
@@ -594,15 +594,22 @@ export const generateEnglishText = async (category: TextCategory, apiKey: string
 
     while (attempt < maxRetries) {
         try {
-            const prompt = `Buat 4 teks unik dan menarik dalam Bahasa Inggris dengan tema "${category}". Teks harus:
+            const prompt = `Buat 4 teks unik dan menarik dalam Bahasa Inggris dengan terjemahan Indonesia dengan tema "${category}". Setiap teks harus:
 - Relevan dengan kategori yang dipilih
 - Menarik dan engaging untuk media sosial
-- Panjang maksimal 80 karakter (termasuk spasi)
+- Teks Inggris: maksimal 80 karakter
+- Terjemahan Indonesia: maksimal 85 karakter
+- Total kombinasi: maksimal 165 karakter
 - Original dan tidak klise
 - Sesuai untuk postingan inspiratif atau informatif
-- Bisa berupa kutipan pendek, pepatah, atau kalimat motivasi
 
-Format hasilnya sebagai array JSON dari string. Pastikan setiap teks tidak lebih dari 80 karakter.`;
+Format hasilnya sebagai array JSON dari objek dengan struktur:
+{
+  "english": "teks dalam bahasa Inggris",
+  "indonesian": "terjemahan dalam bahasa Indonesia"
+}
+
+Pastikan setiap teks tidak lebih dari batas karakter yang ditentukan.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -614,7 +621,14 @@ Format hasilnya sebagai array JSON dari string. Pastikan setiap teks tidak lebih
                         properties: {
                             texts: {
                                 type: Type.ARRAY,
-                                items: { type: Type.STRING }
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        english: { type: Type.STRING },
+                                        indonesian: { type: Type.STRING }
+                                    },
+                                    required: ["english", "indonesian"]
+                                }
                             }
                         },
                         required: ["texts"]
@@ -627,7 +641,7 @@ Format hasilnya sebagai array JSON dari string. Pastikan setiap teks tidak lebih
             return parsedJson.texts || [];
 
         } catch (error: any) {
-            console.error("Error generating English text:", error);
+            console.error("Error generating bilingual text:", error);
 
             // Check if it's a quota exceeded error (429)
             if (error?.error?.code === 429) {
@@ -644,11 +658,11 @@ Format hasilnya sebagai array JSON dari string. Pastikan setiap teks tidak lebih
             }
 
             // For other errors, throw immediately
-            throw new Error("Gagal menghasilkan teks bahasa Inggris. Silakan periksa konsol.");
+            throw new Error("Gagal menghasilkan teks bilingual. Silakan periksa konsol.");
         }
     }
 
-    throw new Error("Gagal menghasilkan teks bahasa Inggris setelah beberapa percobaan. Silakan periksa konsol.");
+    throw new Error("Gagal menghasilkan teks bilingual setelah beberapa percobaan. Silakan periksa konsol.");
 };
 
 export const translateText = async (englishText: string, apiKey: string): Promise<string> => {
