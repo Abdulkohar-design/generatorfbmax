@@ -468,40 +468,42 @@ const TextGenerator: React.FC<any> = ({
                             <div>
                                 <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2 flex items-center">
                                     <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs mr-2">{index + 1}</span>
-                                    Bahasa Inggris
-                                </h4>
-                                <p className="text-sm text-slate-800 dark:text-slate-200">{text}</p>
-                                <button
-                                    onClick={() => handleCopyText(text)}
-                                    className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
-                                >
-                                    Salin
-                                </button>
-                            </div>
-
-                            <div>
-                                <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2 flex items-center">
-                                    <span className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs mr-2">ID</span>
-                                    Bahasa Indonesia
+                                    Teks Lengkap
                                 </h4>
                                 {translatedTexts[index] ? (
                                     <div>
-                                        <p className="text-sm text-slate-800 dark:text-slate-200">{translatedTexts[index]}</p>
+                                        <div className="bg-white dark:bg-slate-700 p-3 rounded-md border border-slate-200 dark:border-slate-600">
+                                            <p className="text-sm text-slate-800 dark:text-slate-200 mb-2">{text}</p>
+                                            <p className="text-sm text-slate-600 dark:text-slate-400 italic">
+                                                <strong>Artinya:</strong> {translatedTexts[index]}
+                                            </p>
+                                        </div>
                                         <button
-                                            onClick={() => handleCopyText(translatedTexts[index])}
+                                            onClick={() => handleCopyText(`${text}\n\nArtinya: ${translatedTexts[index]}`)}
                                             className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
                                         >
-                                            Salin
+                                            Salin Teks Lengkap
                                         </button>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={() => handleTranslateText(text, index)}
-                                        disabled={isTranslating}
-                                        className="w-full flex items-center justify-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900/80 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
-                                    >
-                                        {isTranslating ? 'Menerjemahkan...' : 'Terjemahkan'}
-                                    </button>
+                                    <div>
+                                        <div className="bg-white dark:bg-slate-700 p-3 rounded-md border border-slate-200 dark:border-slate-600">
+                                            <p className="text-sm text-slate-800 dark:text-slate-200 mb-2">{text}</p>
+                                            <button
+                                                onClick={() => handleTranslateText(text, index)}
+                                                disabled={isTranslating}
+                                                className="w-full flex items-center justify-center px-3 py-2 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900/80 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
+                                            >
+                                                {isTranslating ? 'Menerjemahkan...' : 'Terjemahkan ke Bahasa Indonesia'}
+                                            </button>
+                                        </div>
+                                        <button
+                                            onClick={() => handleCopyText(text)}
+                                            className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
+                                        >
+                                            Salin Teks Inggris
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
