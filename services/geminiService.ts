@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import type { GeneratedMetadata, ReactionStyle, OutputLength, VeoPrompts, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, TextCategory, GeneratedText } from '../types';
+import type { GeneratedMetadata, ReactionStyle, OutputLength, VeoPrompts, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, TextCategory, GeneratedText, TextImageCategory } from '../types';
 
 const fileToGenerativePart = async (file: File) => {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
@@ -712,4 +712,69 @@ Berikan hanya terjemahan saja tanpa penjelasan tambahan.`;
     }
 
     throw new Error("Gagal menerjemahkan teks setelah beberapa percobaan. Silakan periksa konsol.");
+};
+
+export const generateTextForImage = async (category: TextImageCategory, apiKey: string): Promise<string[]> => {
+    if (!apiKey) {
+        throw new Error("API Key Gemini diperlukan.");
+    }
+    const ai = new GoogleGenAI({ apiKey });
+
+    try {
+        const prompt = `Buat 4 konten unik dan menarik dalam Bahasa Indonesia dengan tema "${category}". Setiap konten harus mengikuti format seperti contoh berikut:
+
+📌 Contoh Format:
+PESAN ALAM YANG JANGAN PERNAH KAMU LANGGAR
+
+Jangan marah pada orang yang sedang makan.
+Jika di gunung ketemu pasar, jangan beli apapun di sana.
+Kalau orang tuamu melarang pergi, jangan pergi.
+Jangan membuat candaan bila kamu melihat kekurangan seseorang.
+Jika bertamu, kemudian disuguhkan makanan, maka makanlah walaupun sedikit.
+
+ATAU format dengan angka:
+5 HAL YANG MEMBUKA PINTU REZEKI
+
+Bersyukur dalam keadaan apapun.
+Tidak berhenti berusaha meski hasil belum terlihat.
+Menjaga silaturahmi dengan ikhlas.
+Tidak memutus doa kepada kedua orang tua.
+Rajin bersedekah meski hanya sedikit.
+
+Setiap konten harus:
+- Judul dalam HURUF BESAR dengan emoji 📌
+- Konten yang informatif dan bermanfaat
+- Menggunakan format daftar (dengan atau tanpa angka)
+- Total panjang 200-400 karakter
+- Bahasa Indonesia yang natural dan mudah dipahami
+- Tema yang relevan dengan kategori "${category}"
+
+Format hasilnya sebagai array JSON dari string yang sudah diformat lengkap.`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [{ text: prompt }] },
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        texts: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING }
+                        }
+                    },
+                    required: ["texts"]
+                }
+            }
+        });
+
+        const jsonString = response.text.trim();
+        const parsedJson = JSON.parse(jsonString);
+        return parsedJson.texts || [];
+
+    } catch (error) {
+        console.error("Error generating text for image:", error);
+        throw new Error("Gagal menghasilkan teks untuk gambar. Silakan periksa konsol.");
+    }
 };

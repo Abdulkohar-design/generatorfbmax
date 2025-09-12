@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI, Chat } from "@google/genai";
+import { GoogleGenAI, Chat, Type } from "@google/genai";
 import { FileUpload } from './components/FileUpload';
 import { MetadataForm } from './components/MetadataForm';
 import { FacebookPreview } from './components/FacebookPreview';
-import { generateFacebookMetadata, generateReactionCaption, generateImagePrompt, generateVeoVideoPrompts, analyzeToneAndAudience, generateImageToVideoPrompt, generateRepurposingIdeas, generateQuotes, generateImageWithImagen, editImageWithGemini, generateImagePromptSuggestions, generateEnglishText, translateText } from './services/geminiService';
-import type { GeneratedMetadata, EditableMetadata, ReactionStyle, OutputLength, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, ChatMessage, ActiveTab, TextCategory, GeneratedText } from './types';
+import { generateFacebookMetadata, generateReactionCaption, generateImagePrompt, generateVeoVideoPrompts, analyzeToneAndAudience, generateImageToVideoPrompt, generateRepurposingIdeas, generateQuotes, generateImageWithImagen, editImageWithGemini, generateImagePromptSuggestions, generateEnglishText, translateText, generateTextForImage } from './services/geminiService';
+import type { GeneratedMetadata, EditableMetadata, ReactionStyle, OutputLength, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, ChatMessage, ActiveTab, TextCategory, GeneratedText, TextImageCategory } from './types';
 import { SparklesIcon, CopyIcon, WandIcon, VideoIcon, TargetIcon, LightbulbIcon, TagIcon, ImageToVideoIcon, KeyIcon, ShareIcon, InstagramIcon, TikTokIcon, XIcon, LinkedInIcon, ChatBubbleIcon, QuoteIcon, DownloadIcon, FacebookIcon, ImageIcon, PencilIcon, SendIcon } from './components/icons';
 
 type ActiveImageGenTab = 'create' | 'edit';
@@ -493,6 +493,339 @@ const TextGenerator: React.FC<any> = ({
     </div>
 );
 
+const TextImageGenerator: React.FC<any> = ({
+    apiKey, textImageCategory, setTextImageCategory, handleGenerateTextImages, isGeneratingTextImages,
+    generatedTextImages, handleDownloadTextImage, manualText, setManualText, useManualText, setUseManualText,
+    backgroundColor, setBackgroundColor, textColor, setTextColor, fontFamily, setFontFamily,
+    textAlignment, setTextAlignment, textPosition, setTextPosition, showTextBox, setShowTextBox,
+    textBoxPadding, setTextBoxPadding, textBoxRadius, setTextBoxRadius, textBoxShadow, setTextBoxShadow
+}) => (
+    <div className="flex flex-col items-center">
+        <div className="w-full max-w-4xl bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
+            <h2 className="text-2xl font-semibold mb-6 text-center">Generator Poster Teks</h2>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Content Input */}
+                <div className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                id="useManualText"
+                                checked={useManualText}
+                                onChange={(e) => setUseManualText(e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <label htmlFor="useManualText" className="ml-2 block text-sm text-slate-900 dark:text-slate-200">
+                                Gunakan teks manual
+                            </label>
+                        </div>
+
+                        {useManualText ? (
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Teks Manual</label>
+                                <textarea
+                                    value={manualText}
+                                    onChange={(e) => setManualText(e.target.value)}
+                                    placeholder="Masukkan teks yang ingin dijadikan poster dengan format seperti ini:&#10;&#10;📌 5 TANDA SUAMI SERING BERBOHONG PADA ISTRI&#10;&#10;Rezeki terasa seret tanpa sebab jelas.&#10;Uang cepat habis dan tidak tahu kemana perginya.&#10;Banyak urusan yang tiba-tiba dipersulit.&#10;Rumah tangga sering dipenuhi cekcok.&#10;Suami terlihat gelisah dan selalu merasa bersalah.&#10;&#10;Atau dengan format angka:&#10;&#10;📌 5 HAL YANG MEMBUKA PINTU REZEKI&#10;&#10;1. Bersyukur dalam keadaan apapun.&#10;2. Tidak berhenti berusaha meski hasil belum terlihat.&#10;3. Menjaga silaturahmi dengan ikhlas.&#10;4. Tidak memutus doa kepada kedua orang tua.&#10;5. Rajin bersedekah meski hanya sedikit."
+                                    rows={6}
+                                    className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Pilih Kategori Teks</label>
+                                <select
+                                    value={textImageCategory}
+                                    onChange={(e) => setTextImageCategory(e.target.value as TextImageCategory)}
+                                    className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option>Motivasi</option>
+                                    <option>Inspirasi</option>
+                                    <option>Humor</option>
+                                    <option>Cinta</option>
+                                    <option>Kehidupan</option>
+                                    <option>Kesuksesan</option>
+                                    <option>Persahabatan</option>
+                                    <option>Bijak</option>
+                                    <option>Renungan</option>
+                                    <option>Motivasi Karier</option>
+                                    <option>Kesehatan Mental</option>
+                                    <option>Lingkungan</option>
+                                    <option>Sosial</option>
+                                    <option>Teknologi</option>
+                                    <option>Bisnis</option>
+                                    <option>Pendidikan</option>
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={handleGenerateTextImages}
+                        disabled={!apiKey || isGeneratingTextImages || (useManualText && !manualText.trim())}
+                        className="w-full flex items-center justify-center px-6 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
+                    >
+                        {isGeneratingTextImages ? 'Menghasilkan...' : 'Buat Poster Teks'}
+                    </button>
+
+                    {!apiKey && <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 text-center"><strong>Peringatan:</strong> Masukkan API Key di header untuk menggunakan fitur ini.</p>}
+                </div>
+
+                {/* Right Column - Styling Options */}
+                <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Pengaturan Styling</h3>
+
+                    {/* Background Settings */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Background</h4>
+                        <div className="flex items-center space-x-3">
+                            <input
+                                type="color"
+                                value={backgroundColor}
+                                onChange={(e) => setBackgroundColor(e.target.value)}
+                                className="w-12 h-10 border border-slate-300 rounded cursor-pointer"
+                                title="Pilih warna background"
+                            />
+                            <input
+                                type="text"
+                                value={backgroundColor}
+                                onChange={(e) => setBackgroundColor(e.target.value)}
+                                className="flex-1 p-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                                placeholder="#ffffff"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Typography Settings */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Typography</h4>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Font</label>
+                                <select
+                                    value={fontFamily}
+                                    onChange={(e) => setFontFamily(e.target.value)}
+                                    className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                                >
+                                    <option value="Arial">Arial</option>
+                                    <option value="Poppins">Poppins</option>
+                                    <option value="Roboto">Roboto</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Verdana">Verdana</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Warna Teks</label>
+                                <div className="flex space-x-2">
+                                    <input
+                                        type="color"
+                                        value={textColor}
+                                        onChange={(e) => setTextColor(e.target.value)}
+                                        className="w-8 h-8 border border-slate-300 rounded cursor-pointer"
+                                        title="Pilih warna teks"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={textColor}
+                                        onChange={(e) => setTextColor(e.target.value)}
+                                        className="flex-1 p-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                                        placeholder="#000000"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Layout Settings */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Layout</h4>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Perataan Teks</label>
+                                <select
+                                    value={textAlignment}
+                                    onChange={(e) => setTextAlignment(e.target.value as 'left' | 'center' | 'right')}
+                                    className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                                >
+                                    <option value="left">Kiri</option>
+                                    <option value="center">Tengah</option>
+                                    <option value="right">Kanan</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Posisi Teks</label>
+                                <select
+                                    value={textPosition}
+                                    onChange={(e) => setTextPosition(e.target.value as 'top' | 'center' | 'bottom')}
+                                    className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                                >
+                                    <option value="top">Atas</option>
+                                    <option value="center">Tengah</option>
+                                    <option value="bottom">Bawah</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Text Box Settings */}
+                    <div className="space-y-3">
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                id="showTextBox"
+                                checked={showTextBox}
+                                onChange={(e) => setShowTextBox(e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <label htmlFor="showTextBox" className="ml-2 block text-sm text-slate-700 dark:text-slate-300">
+                                Kotak Teks
+                            </label>
+                        </div>
+
+                        {showTextBox && (
+                            <div className="space-y-3 pl-6 border-l-2 border-slate-200 dark:border-slate-600">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Padding</label>
+                                        <input
+                                            type="range"
+                                            min="20"
+                                            max="100"
+                                            value={textBoxPadding}
+                                            onChange={(e) => setTextBoxPadding(Number(e.target.value))}
+                                            className="w-full"
+                                        />
+                                        <span className="text-xs text-slate-500">{textBoxPadding}px</span>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-600 dark:text-slate-400 mb-1">Radius</label>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="50"
+                                            value={textBoxRadius}
+                                            onChange={(e) => setTextBoxRadius(Number(e.target.value))}
+                                            className="w-full"
+                                        />
+                                        <span className="text-xs text-slate-500">{textBoxRadius}px</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="textBoxShadow"
+                                        checked={textBoxShadow}
+                                        onChange={(e) => setTextBoxShadow(e.target.checked)}
+                                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <label htmlFor="textBoxShadow" className="ml-2 block text-sm text-slate-700 dark:text-slate-300">
+                                        Shadow
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {isGeneratingTextImages && (
+            <div className="text-center p-8 space-y-3">
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-slate-500">AI sedang membuat poster teks...</p>
+            </div>
+        )}
+
+        {generatedTextImages.length > 0 && (
+            <div className="w-full mt-8">
+                <h3 className="text-xl font-semibold mb-6 text-center text-slate-800 dark:text-slate-200">Hasil Poster (4 Varian)</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {generatedTextImages.map((text: string, index: number) => (
+                        <div key={index} className="relative group">
+                            <div
+                                className="aspect-[9/16] w-full border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden"
+                                style={{
+                                    backgroundColor: backgroundColor,
+                                    fontFamily: fontFamily
+                                }}
+                            >
+                                {showTextBox && (
+                                    <div
+                                        className="absolute inset-0 rounded-2xl bg-white/90"
+                                        style={{
+                                            margin: `${textBoxPadding}px`,
+                                            borderRadius: `${textBoxRadius}px`,
+                                            boxShadow: textBoxShadow ? '0 10px 25px rgba(0,0,0,0.2)' : 'none'
+                                        }}
+                                    />
+                                )}
+                                <div
+                                    className="absolute inset-0 flex p-6"
+                                    style={{
+                                        padding: showTextBox ? `${textBoxPadding + 15}px` : '1.5rem',
+                                        textAlign: textAlignment,
+                                        alignItems: textPosition === 'top' ? 'flex-start' : textPosition === 'bottom' ? 'flex-end' : 'center',
+                                        justifyContent: textAlignment === 'center' ? 'center' : textAlignment === 'right' ? 'flex-end' : 'flex-start'
+                                    }}
+                                >
+                                    <div
+                                        className="leading-relaxed whitespace-pre-line"
+                                        style={{
+                                            color: textColor,
+                                            fontFamily: fontFamily,
+                                            fontSize: '1.1rem',
+                                            lineHeight: '1.5',
+                                            maxWidth: '100%'
+                                        }}
+                                    >
+                                        {text.split('\n').map((line, i) => {
+                                            // Check if line starts with emoji or is a title (all caps)
+                                            if (line.includes('📌') || line.match(/^[A-Z\s&]+$/) && line.length > 10) {
+                                                return (
+                                                    <div key={i} className="font-bold text-lg mb-3 leading-tight">
+                                                        {line}
+                                                    </div>
+                                                );
+                                            }
+                                            // Check if line is numbered list
+                                            if (line.match(/^\d+\./)) {
+                                                return (
+                                                    <div key={i} className="font-semibold mb-2 ml-2">
+                                                        {line}
+                                                    </div>
+                                                );
+                                            }
+                                            // Regular line
+                                            return (
+                                                <div key={i} className="mb-2">
+                                                    {line}
+                                                </div>
+                                            );
+                                        })}
+                                        <div className="mt-6 text-base opacity-75 font-medium">–vdmax</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => handleDownloadTextImage(text)}
+                                className="absolute bottom-4 right-4 bg-indigo-600 text-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-indigo-700"
+                                aria-label={`Unduh poster ${index + 1}`}
+                            >
+                                <DownloadIcon className="w-6 h-6" />
+                            </button>
+                            <div className="absolute top-4 left-4 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+                                #{index + 1}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+    </div>
+);
+
 
 const App: React.FC = () => {
   // State Umum
@@ -567,6 +900,24 @@ const App: React.FC = () => {
   const [textCategory, setTextCategory] = useState<TextCategory>('Motivasi');
   const [generatedTexts, setGeneratedTexts] = useState<GeneratedText[]>([]);
   const [isGeneratingTexts, setIsGeneratingTexts] = useState<boolean>(false);
+
+  // State untuk Generator Gambar Teks
+  const [textImageCategory, setTextImageCategory] = useState<TextImageCategory>('Motivasi');
+  const [generatedTextImages, setGeneratedTextImages] = useState<string[]>([]);
+  const [isGeneratingTextImages, setIsGeneratingTextImages] = useState<boolean>(false);
+  const [manualText, setManualText] = useState<string>('');
+  const [useManualText, setUseManualText] = useState<boolean>(false);
+
+  // Advanced styling options
+  const [backgroundColor, setBackgroundColor] = useState<string>('#ffffff');
+  const [textColor, setTextColor] = useState<string>('#000000');
+  const [fontFamily, setFontFamily] = useState<string>('Arial');
+  const [textAlignment, setTextAlignment] = useState<'left' | 'center' | 'right'>('center');
+  const [textPosition, setTextPosition] = useState<'top' | 'center' | 'bottom'>('center');
+  const [showTextBox, setShowTextBox] = useState<boolean>(true);
+  const [textBoxPadding, setTextBoxPadding] = useState<number>(40);
+  const [textBoxRadius, setTextBoxRadius] = useState<number>(20);
+  const [textBoxShadow, setTextBoxShadow] = useState<boolean>(true);
 
   useEffect(() => {
     const savedApiKey = localStorage.getItem('geminiApiKey');
@@ -949,6 +1300,232 @@ const App: React.FC = () => {
     navigator.clipboard.writeText(text);
     // You could add a toast notification here if desired
   };
+
+  const handleGenerateTextImages = async () => {
+    if (!apiKey) {
+      setError('Silakan masukkan API Key Gemini Anda di header.');
+      return;
+    }
+    setIsGeneratingTextImages(true);
+    setError(null);
+    setGeneratedTextImages([]);
+    try {
+      let texts: string[];
+      if (useManualText && manualText.trim()) {
+        // For manual text, generate 4 variations using AI
+        const prompt = `Buat 4 variasi konten unik dari teks berikut dengan format yang sama tapi kata-kata yang berbeda. Pertahankan struktur dan gaya penulisan yang sama:
+
+"${manualText.trim()}"
+
+Setiap variasi harus:
+- Menggunakan format yang sama (dengan emoji 📌 jika ada)
+- Memiliki judul yang berbeda tapi serupa
+- Isi yang bervariasi tapi tetap relevan dengan tema
+- Panjang yang sama atau serupa
+
+Format hasilnya sebagai array JSON dari string yang sudah diformat lengkap.`;
+
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: { parts: [{ text: prompt }] },
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                texts: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                }
+              },
+              required: ["texts"]
+            }
+          }
+        });
+
+        const jsonString = response.text.trim();
+        const parsedJson = JSON.parse(jsonString);
+        texts = parsedJson.texts || [manualText.trim()];
+      } else {
+        texts = await generateTextForImage(textImageCategory, apiKey);
+      }
+      setGeneratedTextImages(texts);
+    } catch (err: any) {
+      setError(err.message || 'Gagal menghasilkan teks untuk gambar.');
+    } finally {
+      setIsGeneratingTextImages(false);
+    }
+  };
+
+  const handleDownloadTextImage = (text: string) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const width = 1080;
+    const height = 1920;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+
+    ctx.scale(dpr, dpr);
+
+    // Background
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, width, height);
+
+    // Text Box (if enabled)
+    if (showTextBox) {
+      const boxWidth = width - (textBoxPadding * 2);
+      const boxHeight = height - (textBoxPadding * 2);
+      const boxX = textBoxPadding;
+      const boxY = textBoxPadding;
+
+      // Text box background with rounded corners and shadow
+      ctx.save();
+      if (textBoxShadow) {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 5;
+      }
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      roundRect(ctx, boxX, boxY, boxWidth, boxHeight, textBoxRadius);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Text formatting and positioning
+    ctx.fillStyle = textColor;
+    ctx.textAlign = textAlignment as CanvasTextAlign;
+    ctx.textBaseline = 'middle';
+
+    // Calculate text position
+    let textY;
+    switch (textPosition) {
+      case 'top':
+        textY = height * 0.25;
+        break;
+      case 'bottom':
+        textY = height * 0.75;
+        break;
+      default:
+        textY = height * 0.4;
+    }
+
+    // Enhanced text rendering with proper formatting
+    const renderFormattedText = (text: string, x: number, y: number, maxWidth: number, lineHeight: number) => {
+      const lines = text.split('\n');
+      let currentY = y;
+
+      lines.forEach(line => {
+        if (!line.trim()) {
+          currentY += lineHeight * 0.8;
+          return;
+        }
+
+        // Check if this is a title (contains emoji or all caps)
+        if (line.includes('📌') || (line.match(/^[A-Z\s&]+$/) && line.length > 10)) {
+          // Title - larger and bold
+          ctx.font = `bold ${baseFontSize * 1.4}px "${fontFamily}", sans-serif`;
+          ctx.textAlign = 'center';
+          const titleLines = wrapTextLine(line, maxWidth, ctx);
+          titleLines.forEach(titleLine => {
+            ctx.fillText(titleLine, width / 2, currentY);
+            currentY += lineHeight * 1.6;
+          });
+          ctx.font = `400 ${baseFontSize}px "${fontFamily}", sans-serif`;
+          ctx.textAlign = textAlignment as CanvasTextAlign;
+          currentY += lineHeight * 0.5;
+        }
+        // Check if this is a numbered list item
+        else if (line.match(/^\d+\./)) {
+          ctx.font = `600 ${baseFontSize}px "${fontFamily}", sans-serif`;
+          const listLines = wrapTextLine(line, maxWidth - 30, ctx);
+          listLines.forEach((listLine, index) => {
+            const listX = textAlignment === 'center' ? x : textAlignment === 'right' ? x : x + 15;
+            ctx.fillText(listLine, listX, currentY);
+            currentY += lineHeight * 1.3;
+          });
+          ctx.font = `400 ${baseFontSize}px "${fontFamily}", sans-serif`;
+        }
+        // Regular text
+        else {
+          const textLines = wrapTextLine(line, maxWidth, ctx);
+          textLines.forEach(textLine => {
+            ctx.fillText(textLine, x, currentY);
+            currentY += lineHeight * 1.2;
+          });
+        }
+      });
+    };
+
+    // Helper function to wrap individual lines
+    const wrapTextLine = (text: string, maxWidth: number, ctx: CanvasRenderingContext2D) => {
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+
+        if (testWidth > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      return lines;
+    };
+
+    // Set font based on selection
+    const baseFontSize = Math.min(width / 20, 48);
+    ctx.font = `400 ${baseFontSize}px "${fontFamily}", sans-serif`;
+
+    // Calculate text area based on text box or full canvas
+    const textAreaWidth = showTextBox ? width - (textBoxPadding * 4) : width - 200;
+    const textAreaX = showTextBox ? width / 2 : width / 2;
+
+    renderFormattedText(text, textAreaX, textY, textAreaWidth, baseFontSize * 1.4);
+
+    // Signature
+    ctx.font = `italic ${baseFontSize * 0.6}px "${fontFamily}", sans-serif`;
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.fillText('–vdmax', width / 2, height - 100);
+
+    const link = document.createElement('a');
+    link.download = `poster-${text.substring(0, 20).replace(/\s/g, '_')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  // Helper function for rounded rectangles
+  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  };
   
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !chatSession || isChatting) return;
@@ -1018,6 +1595,9 @@ const App: React.FC = () => {
             <button onClick={() => setActiveTab('text')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'text' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                 <QuoteIcon className="w-5 h-5 mr-2" /> Generator Teks
             </button>
+            <button onClick={() => setActiveTab('textImage')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'textImage' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+                <ImageIcon className="w-5 h-5 mr-2" /> Gambar Teks
+            </button>
         </nav>
       </header>
 
@@ -1067,6 +1647,13 @@ const App: React.FC = () => {
         {activeTab === 'text' && <TextGenerator {...{
             apiKey, textCategory, setTextCategory, handleGenerateEnglishTexts, isGeneratingTexts,
             generatedTexts, handleCopyText
+        }} />}
+        {activeTab === 'textImage' && <TextImageGenerator {...{
+            apiKey, textImageCategory, setTextImageCategory, handleGenerateTextImages, isGeneratingTextImages,
+            generatedTextImages, handleDownloadTextImage, manualText, setManualText, useManualText, setUseManualText,
+            backgroundColor, setBackgroundColor, textColor, setTextColor, fontFamily, setFontFamily,
+            textAlignment, setTextAlignment, textPosition, setTextPosition, showTextBox, setShowTextBox,
+            textBoxPadding, setTextBoxPadding, textBoxRadius, setTextBoxRadius, textBoxShadow, setTextBoxShadow
         }} />}
 
       </main>

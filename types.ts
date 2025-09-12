@@ -45,6 +45,8 @@ export type QuoteCategory = 'Inspirasi' | 'Cinta' | 'Motivasi' | 'Humor' | 'Renu
 
 export type TextCategory = 'Motivasi' | 'Bisnis' | 'Pendidikan' | 'Kesehatan' | 'Teknologi' | 'Seni & Kreativitas' | 'Hubungan' | 'Kehidupan Sehari-hari' | 'Inspirasi' | 'Humor' | 'Renungan' | 'Karir' | 'Keuangan' | 'Lingkungan' | 'Sosial' | 'Olahraga';
 
+export type TextImageCategory = 'Motivasi' | 'Inspirasi' | 'Humor' | 'Cinta' | 'Kehidupan' | 'Kesuksesan' | 'Persahabatan' | 'Bijak' | 'Renungan' | 'Motivasi Karier' | 'Kesehatan Mental' | 'Lingkungan' | 'Sosial' | 'Teknologi' | 'Bisnis' | 'Pendidikan';
+
 export interface GeneratedText {
   english: string;
   indonesian: string;
@@ -55,4 +57,4 @@ export interface ChatMessage {
   parts: { text: string }[];
 }
 
-export type ActiveTab = 'content' | 'quotes' | 'image' | 'videoToVeo' | 'chat' | 'text';
+export type ActiveTab = 'content' | 'quotes' | 'image' | 'videoToVeo' | 'chat' | 'text' | 'textImage';
