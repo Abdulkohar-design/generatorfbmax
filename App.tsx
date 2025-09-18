@@ -47,18 +47,324 @@ const PlatformIcon: React.FC<{ platform: RepurposingIdea['platform'], className?
     }
 };
 
+
+// Pre-process text to separate title from content and convert numbered lists to bullets
+const PIN_EMOJI = '\u{1F4CC}';
+const BULLET_CHAR = '\u2022';
+
+type ProcessedTextBlock = {
+  type: 'title' | 'numbered' | 'bullet' | 'paragraph' | 'spacer';
+  content: string;
+};
+
+function preprocessText(text: string): ProcessedTextBlock[] {
+  if (!text) {
+    return [];
+  }
+
+  const pin = PIN_EMOJI;
+
+  let normalized = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  normalized = normalized.replace(/dY\"O/gi, `${pin} `);
+  const pinCleanupRegex = new RegExp(`${pin}\s*`, 'g');
+  normalized = normalized.replace(pinCleanupRegex, `${pin} `);
+
+  // Repair missing spaces between uppercase headings and body text (e.g., "KUATBerani")
+  normalized = normalized.replace(/([A-Z\u00C0-\u017F]{2,})([A-Z][a-z])/g, '$1 $2');
+
+  if (!normalized.includes('\n')) {
+    const firstLowercase = normalized.search(/[a-z\u00C0-\u017F]/u);
+    if (firstLowercase > -1) {
+      const splitIndex = normalized.lastIndexOf(' ', firstLowercase);
+      if (splitIndex > 0) {
+        normalized =
+          normalized.slice(0, splitIndex).trimEnd() +
+          '\n\n' +
+          normalized.slice(splitIndex + 1).trimStart();
+      }
+    }
+  }
+
+  normalized = normalized.replace(/(?<!^)(?<!\n)(\d+\.\s+)/g, '\n$1');
+  const bulletBreakRegex = new RegExp(`(?<!^)(?<!\\n)([-${BULLET_CHAR}\\*]\s+)`, 'g');
+  normalized = normalized.replace(bulletBreakRegex, '\n$1');
+  normalized = normalized.replace(/\n{3,}/g, '\n\n');
+  normalized = normalized.replace(/^\n+/, '').replace(/\n+$/, '');
+
+  const rawLines = normalized.split('\n');
+  const cleanedLines: string[] = [];
+
+  const pushSpacer = () => {
+    if (cleanedLines.length && cleanedLines[cleanedLines.length - 1] !== '') {
+      cleanedLines.push('');
+    }
+  };
+
+  let index = 0;
+  while (index < rawLines.length) {
+    const source = rawLines[index];
+    const trimmed = source.trim();
+
+    if (!trimmed) {
+      pushSpacer();
+      index += 1;
+      continue;
+    }
+
+    const collapsed = trimmed.replace(/\s+/g, ' ');
+
+    const numberOnly = collapsed.match(/^(\d+)\.$/);
+    if (numberOnly) {
+      let lookahead = index + 1;
+      let nextContent = '';
+      while (lookahead < rawLines.length) {
+        const candidate = rawLines[lookahead].trim();
+        if (!candidate) {
+          lookahead += 1;
+          continue;
+        }
+        nextContent = candidate.replace(/\s+/g, ' ');
+        break;
+      }
+      if (nextContent) {
+        cleanedLines.push(`${numberOnly[1]}. ${nextContent}`);
+        index = lookahead + 1;
+        continue;
+      }
+    }
+
+    const bulletOnly = collapsed.match(new RegExp(`^[-${BULLET_CHAR}\*]$`));
+    if (bulletOnly) {
+      let lookahead = index + 1;
+      let nextContent = '';
+      while (lookahead < rawLines.length) {
+        const candidate = rawLines[lookahead].trim();
+        if (!candidate) {
+          lookahead += 1;
+          continue;
+        }
+        nextContent = candidate.replace(/\s+/g, ' ');
+        break;
+      }
+      if (nextContent) {
+        cleanedLines.push(`${BULLET_CHAR} ${nextContent}`);
+        index = lookahead + 1;
+        continue;
+      }
+    }
+
+    cleanedLines.push(collapsed);
+    index += 1;
+  }
+
+  const blocks: ProcessedTextBlock[] = [];
+  let lastType: ProcessedTextBlock['type'] | null = null;
+
+  const isAllCaps = (value: string) => {
+    const letters = value.replace(/[^A-Za-z\u00C0-\u017F&\s'-]/g, '').trim();
+    return letters && letters === letters.toUpperCase();
+  };
+
+  cleanedLines.forEach((line) => {
+    if (!line) {
+      if (blocks.length && lastType !== 'spacer') {
+        blocks.push({ type: 'spacer', content: '' });
+        lastType = 'spacer';
+      }
+      return;
+    }
+
+    let content = line;
+    if (content.startsWith(pin) && !content.startsWith(`${pin} `)) {
+      content = `${pin} ${content.slice(pin.length).trimStart()}`;
+    }
+
+    let type: ProcessedTextBlock['type'] = 'paragraph';
+
+    if (content.startsWith(pin)) {
+      type = 'title';
+    } else if (/^\d+\.\s+/.test(content)) {
+      type = 'numbered';
+    } else if (new RegExp(`^${BULLET_CHAR}\s+`).test(content) || /^[-\*]\s+/.test(content)) {
+      type = 'bullet';
+      content = content.replace(/^[-\*]\s+/, `${BULLET_CHAR} `);
+      if (!content.startsWith(`${BULLET_CHAR} `)) {
+        content = `${BULLET_CHAR} ${content.replace(new RegExp(`^${BULLET_CHAR}\s*`), '')}`;
+      }
+    } else if (isAllCaps(content)) {
+      type = 'title';
+    }
+
+    if (type === 'bullet' && !content.startsWith(`${BULLET_CHAR} `)) {
+      content = `${BULLET_CHAR} ${content.replace(new RegExp(`^[-${BULLET_CHAR}\*]\s*`), '')}`;
+    }
+
+    blocks.push({ type, content });
+    lastType = type;
+  });
+
+  return blocks;
+}
+
+
+
 // Main Tab Components (Moved outside App)
 
+const TextPosterCard: React.FC<{
+  text: string;
+  backgroundColor: string;
+  fontFamily: string;
+  textColor: string;
+  textAlignment: 'left' | 'center' | 'right';
+  textPosition: 'top' | 'center' | 'bottom';
+  showTextBox: boolean;
+  textBoxPadding: number;
+  textBoxRadius: number;
+  textBoxShadow: boolean;
+  onDownload?: () => void;
+  badgeLabel?: string;
+  downloadAriaLabel?: string;
+}> = ({
+  text,
+  backgroundColor,
+  fontFamily,
+  textColor,
+  textAlignment,
+  textPosition,
+  showTextBox,
+  textBoxPadding,
+  textBoxRadius,
+  textBoxShadow,
+  onDownload,
+  badgeLabel,
+  downloadAriaLabel,
+}) => {
+  const processedBlocks = preprocessText(text);
+  const hasContent = processedBlocks.length > 0;
+
+  return (
+    <div className="relative group">
+      <div
+        className="aspect-[9/16] w-full border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden"
+        style={{
+          backgroundColor,
+          fontFamily,
+        }}
+      >
+        {showTextBox && (
+          <div
+            className="absolute inset-0 rounded-2xl bg-white/90"
+            style={{
+              margin: `${textBoxPadding}px`,
+              borderRadius: `${textBoxRadius}px`,
+              boxShadow: textBoxShadow ? '0 10px 25px rgba(0,0,0,0.2)' : 'none',
+            }}
+          />
+        )}
+        <div
+          className="absolute inset-0 flex p-6"
+          style={{
+            padding: showTextBox ? `${textBoxPadding + 15}px` : '1.5rem',
+            textAlign: textAlignment,
+            alignItems:
+              textPosition === 'top'
+                ? 'flex-start'
+                : textPosition === 'bottom'
+                ? 'flex-end'
+                : 'center',
+            justifyContent:
+              textAlignment === 'center'
+                ? 'center'
+                : textAlignment === 'right'
+                ? 'flex-end'
+                : 'flex-start',
+          }}
+        >
+          <div
+            className="leading-relaxed whitespace-pre-line w-full"
+            style={{
+              color: textColor,
+              fontFamily,
+              fontSize: '1.1rem',
+              lineHeight: '1.5',
+              maxWidth: '100%',
+            }}
+          >
+            {hasContent
+              ? processedBlocks.map((block, i) => {
+                  if (block.type === 'spacer') {
+                    return <div key={i} className="h-3" aria-hidden="true" />;
+                  }
+
+                  if (block.type === 'title') {
+                    return (
+                      <div key={i} className="font-bold text-lg mb-3 leading-tight">
+                        {block.content}
+                      </div>
+                    );
+                  }
+
+                  if (block.type === 'numbered' || block.type === 'bullet') {
+                    return (
+                      <div key={i} className="font-semibold mb-2 ml-2">
+                        {block.content}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={i} className="mb-2">
+                      {block.content}
+                    </div>
+                  );
+                })
+              : (
+                <div className="text-sm text-slate-400 italic text-center">
+                  Teks akan ditampilkan di sini.
+                </div>
+              )}
+            <div className="mt-6 text-base opacity-75 font-medium">–vdmax</div>
+          </div>
+        </div>
+      </div>
+      {onDownload && (
+        <button
+          onClick={onDownload}
+          className="absolute bottom-4 right-4 bg-indigo-600 text-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-indigo-700"
+          aria-label={downloadAriaLabel ?? 'Unduh poster'}
+        >
+          <DownloadIcon className="w-6 h-6" />
+        </button>
+      )}
+      {badgeLabel && (
+        <div className="absolute top-4 left-4 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+          {badgeLabel}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ContentGenerator: React.FC<any> = ({
-    apiKey, file, previewUrl, isLoading, handleFileSelect, generatedMetadata, editableMetadata, 
+    apiKey, file, previewUrl, isLoading, handleFileSelect, generatedMetadata, editableMetadata,
     handleMetadataChange, handleGenerateRepurposingIdeas, isAnyActionDisabled, isGeneratingRepurposing,
     repurposingIdeas, handleAnalyzeToneAndAudience, isAnalyzingTone, toneAnalysisResult, reactionStyle,
-    setReactionStyle, outputLength, setOutputLength, includeHashtags, setIncludeHashtags, 
+    setReactionStyle, outputLength, setOutputLength, includeHashtags, setIncludeHashtags,
     handleGenerateReactions, isGeneratingReactions, handleGeneratePrompt, isGeneratingPrompt, imagePrompt,
     handleCopyPrompt, setPromptCopySuccess, promptCopySuccess, handleGenerateImageToVideoPrompt,
     isGeneratingImageToVideoPrompt, imageToVideoResult, setSceneCopySuccess, sceneCopySuccess,
     setDialogueCopySuccess, dialogueCopySuccess, copySuccess, handleCopyAll
-}) => (
+}) => {
+
+  return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div className="flex flex-col space-y-8">
         <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
@@ -117,7 +423,8 @@ const ContentGenerator: React.FC<any> = ({
         </div>
       </div>
     </div>
-);
+  );
+};
 
 const QuoteGenerator: React.FC<any> = ({
     apiKey, quoteCategory, setQuoteCategory, handleGenerateQuotes, isGeneratingQuotes, 
@@ -499,8 +806,20 @@ const TextImageGenerator: React.FC<any> = ({
     backgroundColor, setBackgroundColor, textColor, setTextColor, fontFamily, setFontFamily,
     textAlignment, setTextAlignment, textPosition, setTextPosition, showTextBox, setShowTextBox,
     textBoxPadding, setTextBoxPadding, textBoxRadius, setTextBoxRadius, textBoxShadow, setTextBoxShadow
-}) => (
-    <div className="flex flex-col items-center">
+}) => {
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+    const defaultPreviewText = "?? CONTOH PREVIEW\n\n1. Sesuaikan pengaturan styling.\n2. Klik \"Buat Poster Teks\" untuk melihat hasil.\n3. Gunakan opsi teks manual bila ingin mengatur isi secara langsung.";
+    const previewText = useManualText
+      ? (manualText.trim() ? manualText : defaultPreviewText)
+      : (generatedTextImages[0] ?? defaultPreviewText);
+    const isUsingPlaceholder = useManualText ? manualText.trim().length === 0 : generatedTextImages.length === 0;
+    const previewHelperMessage = useManualText
+      ? 'Preview mengikuti teks manual.'
+      : 'Preview akan menampilkan hasil poster pertama setelah teks dihasilkan.';
+
+    return (
+        <div className="flex flex-col items-center">
         <div className="w-full max-w-4xl bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
             <h2 className="text-2xl font-semibold mb-6 text-center">Generator Poster Teks</h2>
 
@@ -574,6 +893,40 @@ const TextImageGenerator: React.FC<any> = ({
 
                 {/* Right Column - Styling Options */}
                 <div className="space-y-6">
+                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Preview Langsung</h3>
+                        {isUsingPlaceholder && (<span className="text-xs text-slate-500 dark:text-slate-400">Contoh teks</span>)}
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-full max-w-md">
+                          <TextPosterCard
+                            text={previewText}
+                            backgroundColor={backgroundColor}
+                            fontFamily={fontFamily}
+                            textColor={textColor}
+                            textAlignment={textAlignment}
+                            textPosition={textPosition}
+                            showTextBox={showTextBox}
+                            textBoxPadding={textBoxPadding}
+                            textBoxRadius={textBoxRadius}
+                            textBoxShadow={textBoxShadow}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-center mt-4">
+                        <button
+                          onClick={() => setShowPreviewModal(true)}
+                          className="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 text-sm"
+                        >
+                          Lihat Preview Penuh
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
+                        {previewHelperMessage}
+                      </p>
+                    </div>
+
                     <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Pengaturan Styling</h3>
 
                     {/* Background Settings */}
@@ -743,88 +1096,54 @@ const TextImageGenerator: React.FC<any> = ({
                 <h3 className="text-xl font-semibold mb-6 text-center text-slate-800 dark:text-slate-200">Hasil Poster (4 Varian)</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {generatedTextImages.map((text: string, index: number) => (
-                        <div key={index} className="relative group">
-                            <div
-                                className="aspect-[9/16] w-full border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden"
-                                style={{
-                                    backgroundColor: backgroundColor,
-                                    fontFamily: fontFamily
-                                }}
-                            >
-                                {showTextBox && (
-                                    <div
-                                        className="absolute inset-0 rounded-2xl bg-white/90"
-                                        style={{
-                                            margin: `${textBoxPadding}px`,
-                                            borderRadius: `${textBoxRadius}px`,
-                                            boxShadow: textBoxShadow ? '0 10px 25px rgba(0,0,0,0.2)' : 'none'
-                                        }}
-                                    />
-                                )}
-                                <div
-                                    className="absolute inset-0 flex p-6"
-                                    style={{
-                                        padding: showTextBox ? `${textBoxPadding + 15}px` : '1.5rem',
-                                        textAlign: textAlignment,
-                                        alignItems: textPosition === 'top' ? 'flex-start' : textPosition === 'bottom' ? 'flex-end' : 'center',
-                                        justifyContent: textAlignment === 'center' ? 'center' : textAlignment === 'right' ? 'flex-end' : 'flex-start'
-                                    }}
-                                >
-                                    <div
-                                        className="leading-relaxed whitespace-pre-line"
-                                        style={{
-                                            color: textColor,
-                                            fontFamily: fontFamily,
-                                            fontSize: '1.1rem',
-                                            lineHeight: '1.5',
-                                            maxWidth: '100%'
-                                        }}
-                                    >
-                                        {text.split('\n').map((line, i) => {
-                                            // Check if line starts with emoji or is a title (all caps)
-                                            if (line.includes('📌') || line.match(/^[A-Z\s&]+$/) && line.length > 10) {
-                                                return (
-                                                    <div key={i} className="font-bold text-lg mb-3 leading-tight">
-                                                        {line}
-                                                    </div>
-                                                );
-                                            }
-                                            // Check if line is numbered list
-                                            if (line.match(/^\d+\./)) {
-                                                return (
-                                                    <div key={i} className="font-semibold mb-2 ml-2">
-                                                        {line}
-                                                    </div>
-                                                );
-                                            }
-                                            // Regular line
-                                            return (
-                                                <div key={i} className="mb-2">
-                                                    {line}
-                                                </div>
-                                            );
-                                        })}
-                                        <div className="mt-6 text-base opacity-75 font-medium">–vdmax</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => handleDownloadTextImage(text)}
-                                className="absolute bottom-4 right-4 bg-indigo-600 text-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-indigo-700"
-                                aria-label={`Unduh poster ${index + 1}`}
-                            >
-                                <DownloadIcon className="w-6 h-6" />
-                            </button>
-                            <div className="absolute top-4 left-4 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
-                                #{index + 1}
-                            </div>
-                        </div>
+                        <TextPosterCard
+                            key={index}
+                            text={text}
+                            backgroundColor={backgroundColor}
+                            fontFamily={fontFamily}
+                            textColor={textColor}
+                            textAlignment={textAlignment}
+                            textPosition={textPosition}
+                            showTextBox={showTextBox}
+                            textBoxPadding={textBoxPadding}
+                            textBoxRadius={textBoxRadius}
+                            textBoxShadow={textBoxShadow}
+                            onDownload={() => handleDownloadTextImage(text)}
+                            badgeLabel={`#${index + 1}`}
+                            downloadAriaLabel={`Unduh poster ${index + 1}`}
+                        />
                     ))}
                 </div>
             </div>
         )}
+
+        {showPreviewModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-lg max-w-lg w-full mx-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold">Preview Penuh</h3>
+                        <button onClick={() => setShowPreviewModal(false)} className="text-slate-500 hover:text-slate-700 text-2xl">×</button>
+                    </div>
+                    <div className="flex justify-center">
+                        <TextPosterCard
+                            text={previewText}
+                            backgroundColor={backgroundColor}
+                            fontFamily={fontFamily}
+                            textColor={textColor}
+                            textAlignment={textAlignment}
+                            textPosition={textPosition}
+                            showTextBox={showTextBox}
+                            textBoxPadding={textBoxPadding}
+                            textBoxRadius={textBoxRadius}
+                            textBoxShadow={textBoxShadow}
+                        />
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
-);
+  );
+};
 
 
 const App: React.FC = () => {
@@ -1418,51 +1737,81 @@ Format hasilnya sebagai array JSON dari string yang sudah diformat lengkap.`;
 
     // Enhanced text rendering with proper formatting
     const renderFormattedText = (text: string, x: number, y: number, maxWidth: number, lineHeight: number) => {
-      const lines = text.split('\n');
+      const processedBlocks = preprocessText(text);
       let currentY = y;
 
-      lines.forEach(line => {
-        if (!line.trim()) {
-          currentY += lineHeight * 0.8;
+      const getNextType = (index: number) => processedBlocks[index + 1]?.type;
+
+      processedBlocks.forEach((block, index) => {
+        const nextType = getNextType(index);
+
+        if (block.type === 'spacer') {
+          currentY += lineHeight * 0.9;
           return;
         }
 
-        // Check if this is a title (contains emoji or all caps)
-        if (line.includes('📌') || (line.match(/^[A-Z\s&]+$/) && line.length > 10)) {
-          // Title - larger and bold
-          ctx.font = `bold ${baseFontSize * 1.4}px "${fontFamily}", sans-serif`;
+        if (block.type === 'title') {
+          ctx.font = `bold ${baseFontSize * 1.2}px "${fontFamily}", sans-serif`;
           ctx.textAlign = 'center';
-          const titleLines = wrapTextLine(line, maxWidth, ctx);
-          titleLines.forEach(titleLine => {
+          const titleLines = wrapTextLine(block.content, maxWidth, ctx);
+          titleLines.forEach((titleLine) => {
             ctx.fillText(titleLine, width / 2, currentY);
-            currentY += lineHeight * 1.6;
+            currentY += lineHeight * 1.4;
           });
           ctx.font = `400 ${baseFontSize}px "${fontFamily}", sans-serif`;
           ctx.textAlign = textAlignment as CanvasTextAlign;
-          currentY += lineHeight * 0.5;
+          currentY += lineHeight * (nextType && nextType !== 'spacer' ? 1.0 : 0.6);
+          return;
         }
-        // Check if this is a numbered list item
-        else if (line.match(/^\d+\./)) {
+
+        if (block.type === 'numbered' || block.type === 'bullet') {
+          const isNumbered = block.type === 'numbered';
           ctx.font = `600 ${baseFontSize}px "${fontFamily}", sans-serif`;
-          const listLines = wrapTextLine(line, maxWidth - 30, ctx);
-          listLines.forEach((listLine, index) => {
-            const listX = textAlignment === 'center' ? x : textAlignment === 'right' ? x : x + 15;
+          const wrapper = isNumbered ? wrapNumberedLine : wrapBulletLine;
+          const listLines = wrapper(block.content, maxWidth - 40, ctx);
+          listLines.forEach((listLine, listIndex) => {
+            let listX: number;
+            switch (textAlignment) {
+              case 'left':
+                listX = listIndex === 0 ? x + 20 : x + 40;
+                break;
+              case 'right':
+                listX = listIndex === 0 ? x - 20 : x - 40;
+                break;
+              default:
+                listX = x;
+            }
             ctx.fillText(listLine, listX, currentY);
-            currentY += lineHeight * 1.3;
+            currentY += lineHeight * 1.1;
           });
           ctx.font = `400 ${baseFontSize}px "${fontFamily}", sans-serif`;
+          if (nextType === block.type) {
+            currentY += lineHeight * 0.7;
+          } else if (nextType && nextType !== 'spacer') {
+            currentY += lineHeight * 0.9;
+          }
+          return;
         }
-        // Regular text
-        else {
-          const textLines = wrapTextLine(line, maxWidth, ctx);
-          textLines.forEach(textLine => {
-            ctx.fillText(textLine, x, currentY);
-            currentY += lineHeight * 1.2;
-          });
+
+        const textLines = wrapTextLine(block.content, maxWidth, ctx);
+        textLines.forEach((textLine) => {
+          ctx.fillText(textLine, x, currentY);
+          currentY += lineHeight * 1.1;
+        });
+
+        if (nextType === 'bullet' || nextType === 'numbered') {
+          currentY += lineHeight * 0.6;
+        } else if (nextType === 'title') {
+          currentY += lineHeight * 0.8;
+        } else if (nextType === 'spacer') {
+          // spacer handles spacing separately
+        } else if (nextType) {
+          currentY += lineHeight * 0.4;
         }
       });
     };
 
+    
     // Helper function to wrap individual lines
     const wrapTextLine = (text: string, maxWidth: number, ctx: CanvasRenderingContext2D) => {
       const words = text.split(' ');
@@ -1485,6 +1834,84 @@ Format hasilnya sebagai array JSON dari string yang sudah diformat lengkap.`;
 
       if (currentLine) {
         lines.push(currentLine);
+      }
+
+      return lines;
+    };
+
+    // Special wrapper for bullet lines to preserve bullets and indent continuation
+    const wrapBulletLine = (text: string, maxWidth: number, ctx: CanvasRenderingContext2D) => {
+      const bulletMatch = text.match(new RegExp(`^(${BULLET_CHAR}\s*)(.*)$`));
+      if (!bulletMatch) {
+        return wrapTextLine(text, maxWidth, ctx);
+      }
+
+      const bulletPart = bulletMatch[1];
+      const contentPart = bulletMatch[2];
+      const firstLine = bulletPart + contentPart;
+
+      if (ctx.measureText(firstLine).width <= maxWidth) {
+        return [firstLine];
+      }
+
+      const contentWords = contentPart.split(' ');
+      const lines = [bulletPart + contentWords[0]];
+      let currentLine = '';
+
+      for (let i = 1; i < contentWords.length; i++) {
+        const word = contentWords[i];
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const testWidth = ctx.measureText(bulletPart + testLine).width;
+
+        if (testWidth > maxWidth && currentLine) {
+          lines.push('  ' + currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+
+      if (currentLine) {
+        lines.push('  ' + currentLine);
+      }
+
+      return lines;
+    };
+
+    // Special wrapper for numbered lines to keep the prefix aligned
+    const wrapNumberedLine = (text: string, maxWidth: number, ctx: CanvasRenderingContext2D) => {
+      const numberMatch = text.match(/^(\d+\.\s*)(.*)$/);
+      if (!numberMatch) {
+        return wrapTextLine(text, maxWidth, ctx);
+      }
+
+      const numberPart = numberMatch[1];
+      const contentPart = numberMatch[2];
+      const firstLine = numberPart + contentPart;
+
+      if (ctx.measureText(firstLine).width <= maxWidth) {
+        return [firstLine];
+      }
+
+      const contentWords = contentPart.split(' ');
+      const lines = [numberPart + contentWords[0]];
+      let currentLine = '';
+
+      for (let i = 1; i < contentWords.length; i++) {
+        const word = contentWords[i];
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const testWidth = ctx.measureText(numberPart + testLine).width;
+
+        if (testWidth > maxWidth && currentLine) {
+          lines.push('  ' + currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+
+      if (currentLine) {
+        lines.push('  ' + currentLine);
       }
 
       return lines;
