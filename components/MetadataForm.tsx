@@ -2,6 +2,7 @@ import React from 'react';
 import type { GeneratedMetadata, EditableMetadata } from '../types';
 import { SuggestionBox } from './SuggestionBox';
 import { CopyIcon } from './icons';
+import { useToast } from './ToastProvider';
 
 interface MetadataFormProps {
   generatedMetadata: GeneratedMetadata | null;
@@ -24,10 +25,6 @@ const TextAreaField: React.FC<{ label: string; value: string; onChange: (e: Reac
     </div>
 );
 
-const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    // You can add a toast notification here
-};
 
 const SkeletonLoader: React.FC = () => (
     <div className="space-y-6 animate-pulse">
@@ -41,6 +38,12 @@ const SkeletonLoader: React.FC = () => (
 );
 
 export const MetadataForm: React.FC<MetadataFormProps> = ({ generatedMetadata, editableMetadata, onMetadataChange, isLoading }) => {
+    const toast = useToast();
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast.success('Tersalin ke clipboard');
+    };
+
     if (isLoading) {
         return <SkeletonLoader />;
     }

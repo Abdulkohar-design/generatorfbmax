@@ -3,9 +3,13 @@ import { GoogleGenAI, Chat, Type } from "@google/genai";
 import { FileUpload } from './components/FileUpload';
 import { MetadataForm } from './components/MetadataForm';
 import { FacebookPreview } from './components/FacebookPreview';
-import { generateFacebookMetadata, generateReactionCaption, generateImagePrompt, generateVeoVideoPrompts, analyzeToneAndAudience, generateImageToVideoPrompt, generateRepurposingIdeas, generateQuotes, generateImageWithImagen, editImageWithGemini, generateImagePromptSuggestions, generateEnglishText, translateText, generateTextForImage } from './services/geminiService';
-import type { GeneratedMetadata, EditableMetadata, ReactionStyle, OutputLength, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, ChatMessage, ActiveTab, TextCategory, GeneratedText, TextImageCategory } from './types';
-import { SparklesIcon, CopyIcon, WandIcon, VideoIcon, TargetIcon, LightbulbIcon, TagIcon, ImageToVideoIcon, KeyIcon, ShareIcon, InstagramIcon, TikTokIcon, XIcon, LinkedInIcon, ChatBubbleIcon, QuoteIcon, DownloadIcon, FacebookIcon, ImageIcon, PencilIcon, SendIcon } from './components/icons';
+import { UGCProductGenerator } from './components/UGCProductGenerator';
+import { SpiritualContentGenerator } from './components/SpiritualContentGenerator';
+import { generateFacebookMetadata, generateReactionCaption, generateImagePrompt, generateVeoVideoPrompts, analyzeToneAndAudience, generateImageToVideoPrompt, generateRepurposingIdeas, generateQuotes, generateImageWithImagen, editImageWithGemini, generateImagePromptSuggestions, generateEnglishText, translateText, generateTextForImage, optimizeUGCContent, suggestUGCTags, generateUGCContent, analyzeUGCPerformance } from './services/geminiService';
+import type { GeneratedMetadata, EditableMetadata, ReactionStyle, OutputLength, ToneAnalysisResult, RepurposingIdea, ImageToVideoResult, QuoteCategory, ChatMessage, ActiveTab, TextCategory, GeneratedText, TextImageCategory, UGCContent, UGCStats } from './types';
+import { SparklesIcon, CopyIcon, WandIcon, VideoIcon, TargetIcon, LightbulbIcon, TagIcon, ImageToVideoIcon, KeyIcon, ShareIcon, InstagramIcon, TikTokIcon, XIcon, LinkedInIcon, ChatBubbleIcon, QuoteIcon, DownloadIcon, FacebookIcon, ImageIcon, PencilIcon, SendIcon, UGCIcon, HeartIcon } from './components/icons';
+import { useToast } from './components/ToastProvider';
+import { ApiKeyNotice } from './components/ApiKeyNotice';
 
 type ActiveImageGenTab = 'create' | 'edit';
 
@@ -370,7 +374,7 @@ const ContentGenerator: React.FC<any> = ({
         <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
           <h2 className="text-xl font-semibold mb-4">1. Unggah Media Anda</h2>
           <FileUpload id="content-file-upload" onFileSelect={handleFileSelect} previewUrl={previewUrl} isLoading={isLoading} file={file} />
-          {!apiKey && <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 text-center"><strong>Peringatan:</strong> Masukkan API Key di header untuk mengaktifkan fitur AI.</p>}
+          {!apiKey && <ApiKeyNotice className="text-xs mt-2 text-center" message="Masukkan API Key di header untuk mengaktifkan fitur AI." />}
         </div>
         <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
           <h2 className="text-xl font-semibold mb-4">2. Hasilkan & Edit Konten</h2>
@@ -453,7 +457,7 @@ const QuoteGenerator: React.FC<any> = ({
             {isGeneratingQuotes ? 'Menghasilkan...' : 'Buat Kutipan'}
           </button>
         </div>
-        {!apiKey && <p className="text-xs text-yellow-600 dark:text-yellow-400 -mt-4 mb-4 text-center"><strong>Peringatan:</strong> Masukkan API Key di header untuk menggunakan fitur ini.</p>}
+        {!apiKey && <ApiKeyNotice className="text-xs -mt-4 mb-4 text-center" message="Masukkan API Key di header untuk menggunakan fitur ini." />}
       </div>
 
       {isGeneratingQuotes && <div className="text-center p-8">AI sedang merangkai kata-kata...</div>}
@@ -487,7 +491,7 @@ const ImageGenerator: React.FC<any> = ({
             </nav>
         </div>
         
-        {!apiKey && <p className="text-sm text-yellow-600 dark:text-yellow-400 mb-4 text-center"><strong>Peringatan:</strong> Masukkan API Key di header untuk menggunakan generator gambar.</p>}
+        {!apiKey && <ApiKeyNotice className="text-sm mb-4 text-center" message="Masukkan API Key di header untuk menggunakan generator gambar." />}
 
         {activeImageGenTab === 'create' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -607,7 +611,7 @@ const VideoToVeoGenerator: React.FC<any> = ({
                     isLoading={isGenerating} 
                     file={file} 
                 />
-                 {!apiKey && <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 text-center"><strong>Peringatan:</strong> Masukkan API Key untuk menggunakan fitur ini.</p>}
+                 {!apiKey && <ApiKeyNotice className="text-xs mt-2 text-center" message="Masukkan API Key untuk menggunakan fitur ini." />}
                 <button 
                     onClick={handleGenerate} 
                     disabled={!apiKey || !file || isGenerating} 
@@ -683,7 +687,7 @@ const AIChat: React.FC<{
                 </div>
             </div>
             <div className="p-4 border-t border-slate-200 dark:border-slate-700">
-                {!apiKey && <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-2 text-center"><strong>Peringatan:</strong> Masukkan API Key untuk mengaktifkan obrolan.</p>}
+                {!apiKey && <ApiKeyNotice className="text-xs mb-2 text-center" message="Masukkan API Key untuk mengaktifkan obrolan." />}
                 <div className="relative">
                     <textarea
                         value={input}
@@ -756,7 +760,7 @@ const TextGenerator: React.FC<any> = ({
                     {isGeneratingTexts ? 'Menghasilkan...' : 'Hasilkan Teks'}
                 </button>
             </div>
-            {!apiKey && <p className="text-xs text-yellow-600 dark:text-yellow-400 -mt-4 mb-4 text-center"><strong>Peringatan:</strong> Masukkan API Key untuk menggunakan fitur ini.</p>}
+            {!apiKey && <ApiKeyNotice className="text-xs -mt-4 mb-4 text-center" message="Masukkan API Key untuk menggunakan fitur ini." />}
         </div>
 
         {isGeneratingTexts && (
@@ -770,7 +774,7 @@ const TextGenerator: React.FC<any> = ({
             <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50 space-y-6">
                 <h3 className="text-xl font-semibold">2. Hasil Teks & Terjemahan</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {generatedTexts.map((text: string, index: number) => (
+                    {generatedTexts.map((text: GeneratedText, index: number) => (
                         <div key={index} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg space-y-4">
                             <div>
                                 <h4 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2 flex items-center">
@@ -779,14 +783,14 @@ const TextGenerator: React.FC<any> = ({
                                 </h4>
                                 <div className="bg-white dark:bg-slate-700 p-3 rounded-md border border-slate-200 dark:border-slate-600">
                                     <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-                                        <span className="font-medium">{generatedTexts[index].english}</span>
+                                        <span className="font-medium">{text.english}</span>
                                         <span className="text-slate-600 dark:text-slate-400 italic ml-1">
-                                            <strong>Artinya:</strong>"{generatedTexts[index].indonesian}"
+                                            <strong>Artinya:</strong>"{text.indonesian}"
                                         </span>
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => handleCopyText(`${generatedTexts[index].english} Artinya:"${generatedTexts[index].indonesian}"`)}
+                                    onClick={() => handleCopyText(`${text.english} Artinya:"${text.indonesian}"`)}
                                     className="mt-2 text-xs text-indigo-500 hover:text-indigo-600"
                                 >
                                     Salin Teks Lengkap
@@ -888,7 +892,7 @@ const TextImageGenerator: React.FC<any> = ({
                         {isGeneratingTextImages ? 'Menghasilkan...' : 'Buat Poster Teks'}
                     </button>
 
-                    {!apiKey && <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 text-center"><strong>Peringatan:</strong> Masukkan API Key di header untuk menggunakan fitur ini.</p>}
+                    {!apiKey && <ApiKeyNotice className="text-xs mt-2 text-center" message="Masukkan API Key di header untuk menggunakan fitur ini." />}
                 </div>
 
                 {/* Right Column - Styling Options */}
@@ -1145,6 +1149,387 @@ const TextImageGenerator: React.FC<any> = ({
   );
 };
 
+const UGCGenerator: React.FC<any> = ({
+    apiKey, ugcContent, setUGCContent, isOptimizing, handleOptimizeContent,
+    isGeneratingTags, handleGenerateTags, isAnalyzing, handleAnalyzePerformance,
+    contentToOptimize, setContentToOptimize, contentType, setContentType,
+    targetAudience, setTargetAudience, contentStyle, setContentStyle,
+    currentContent, setCurrentContent, isGeneratingContent, handleGenerateContent,
+    topic, setTopic, stats, handleExportData, handleImportData
+}) => {
+    const [activeUGCTab, setActiveUGCTab] = useState<'upload' | 'optimize' | 'manage' | 'analytics'>('upload');
+    const [filterCategory, setFilterCategory] = useState<string>('all');
+    const [searchTerm, setSearchTerm] = useState<string>('');
+
+    const filteredContent = ugcContent.filter((item: UGCContent) => {
+        const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
+        const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             item.content.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    const categories = [...new Set(ugcContent.map((item: UGCContent) => item.category))];
+
+    const UGCUploadSection: React.FC = () => (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-6">
+                <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
+                    <h3 className="text-xl font-semibold mb-4">Upload Konten UGC</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tipe Konten</label>
+                            <select
+                                value={contentType}
+                                onChange={(e) => setContentType(e.target.value)}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                            >
+                                <option value="text">Teks</option>
+                                <option value="image">Gambar</option>
+                                <option value="video">Video</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Judul Konten</label>
+                            <input
+                                type="text"
+                                value={currentContent.title || ''}
+                                onChange={(e) => setCurrentContent({...currentContent, title: e.target.value})}
+                                placeholder="Masukkan judul menarik..."
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Konten</label>
+                            <textarea
+                                value={currentContent.content || ''}
+                                onChange={(e) => setCurrentContent({...currentContent, content: e.target.value})}
+                                placeholder={contentType === 'text' ? 'Tulis konten Anda di sini...' : 'Deskripsikan konten Anda...'}
+                                rows={6}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kategori</label>
+                            <input
+                                type="text"
+                                value={currentContent.category || ''}
+                                onChange={(e) => setCurrentContent({...currentContent, category: e.target.value})}
+                                placeholder="Contoh: Motivasi, Kuliner, Travel..."
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                            />
+                        </div>
+                        <button
+                            onClick={() => {
+                                const newContent: UGCContent = {
+                                    id: Date.now().toString(),
+                                    type: contentType as 'text' | 'image' | 'video',
+                                    title: currentContent.title || 'Konten Baru',
+                                    content: currentContent.content || '',
+                                    category: currentContent.category || 'Umum',
+                                    tags: [],
+                                    createdAt: new Date().toISOString(),
+                                    status: 'draft',
+                                    engagement: { likes: 0, shares: 0, comments: 0, views: 0 }
+                                };
+                                setUGCContent([...ugcContent, newContent]);
+                                setCurrentContent({ title: '', content: '', category: '' });
+                            }}
+                            className="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
+                        >
+                            Simpan Konten
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-6">
+                <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
+                    <h3 className="text-xl font-semibold mb-4">Generate Konten UGC</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Topik</label>
+                            <input
+                                type="text"
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                                placeholder="Masukkan topik yang ingin dibuat..."
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Gaya Konten</label>
+                            <select
+                                value={contentStyle}
+                                onChange={(e) => setContentStyle(e.target.value)}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                            >
+                                <option value="casual">Santai</option>
+                                <option value="professional">Profesional</option>
+                                <option value="humorous">Lucu</option>
+                                <option value="inspirational">Inspiratif</option>
+                            </select>
+                        </div>
+                        <button
+                            onClick={handleGenerateContent}
+                            disabled={!apiKey || isGeneratingContent || !topic.trim()}
+                            className="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
+                        >
+                            {isGeneratingContent ? 'Menghasilkan...' : 'Generate Konten UGC'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const UGCOptimizeSection: React.FC = () => (
+        <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
+                <h3 className="text-xl font-semibold mb-4">Optimasi Konten UGC</h3>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Konten yang akan dioptimasi</label>
+                        <textarea
+                            value={contentToOptimize}
+                            onChange={(e) => setContentToOptimize(e.target.value)}
+                            placeholder="Masukkan konten yang ingin dioptimasi..."
+                            rows={4}
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                        />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Target Audiens</label>
+                            <input
+                                type="text"
+                                value={targetAudience}
+                                onChange={(e) => setTargetAudience(e.target.value)}
+                                placeholder="Contoh: Milenial, Ibu rumah tangga..."
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tipe Konten</label>
+                            <select
+                                value={contentType}
+                                onChange={(e) => setContentType(e.target.value)}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                            >
+                                <option value="text">Teks</option>
+                                <option value="image">Gambar</option>
+                                <option value="video">Video</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleOptimizeContent}
+                            disabled={!apiKey || isOptimizing || !contentToOptimize.trim()}
+                            className="flex-1 flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
+                        >
+                            {isOptimizing ? 'Mengoptimasi...' : 'Optimasi Konten'}
+                        </button>
+                        <button
+                            onClick={handleGenerateTags}
+                            disabled={!apiKey || isGeneratingTags || !contentToOptimize.trim()}
+                            className="flex-1 flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900/80 disabled:bg-slate-400 disabled:cursor-not-allowed transition"
+                        >
+                            {isGeneratingTags ? 'Mencari...' : 'Saran Tag'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const UGCManageSection: React.FC = () => (
+        <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                    <div className="flex-1">
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Cari konten..."
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                        />
+                    </div>
+                    <div>
+                        <select
+                            value={filterCategory}
+                            onChange={(e) => setFilterCategory(e.target.value)}
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800"
+                        >
+                            <option value="all">Semua Kategori</option>
+                            {categories.map(category => (
+                                <option key={category} value={category}>{category}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredContent.map((item: UGCContent) => (
+                        <div key={item.id} className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div className="flex justify-between items-start mb-2">
+                                <h4 className="font-semibold text-sm">{item.title}</h4>
+                                <span className={`px-2 py-1 text-xs rounded ${
+                                    item.status === 'published' ? 'bg-green-100 text-green-800' :
+                                    item.status === 'archived' ? 'bg-gray-100 text-gray-800' :
+                                    'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                    {item.status}
+                                </span>
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 line-clamp-2">
+                                {item.content}
+                            </p>
+                            <div className="flex justify-between items-center text-xs text-slate-500">
+                                <span>{item.category}</span>
+                                <span>{new Date(item.createdAt).toLocaleDateString('id-ID')}</span>
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                                <button
+                                    onClick={() => {
+                                        const updated = ugcContent.map(c =>
+                                            c.id === item.id ? {...c, status: 'published'} : c
+                                        );
+                                        setUGCContent(updated);
+                                    }}
+                                    disabled={item.status === 'published'}
+                                    className="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
+                                >
+                                    Publish
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const updated = ugcContent.map(c =>
+                                            c.id === item.id ? {...c, status: 'archived'} : c
+                                        );
+                                        setUGCContent(updated);
+                                    }}
+                                    disabled={item.status === 'archived'}
+                                    className="flex-1 px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 disabled:bg-gray-400"
+                                >
+                                    Archive
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {filteredContent.length === 0 && (
+                    <div className="text-center py-8 text-slate-500">
+                        Belum ada konten UGC. Mulai dengan upload konten baru!
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const UGCAnalyticsSection: React.FC = () => (
+        <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50">
+                <h3 className="text-xl font-semibold mb-4">Analytics UGC</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalContent}</div>
+                        <div className="text-sm text-slate-600 dark:text-slate-400">Total Konten</div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.publishedContent}</div>
+                        <div className="text-sm text-slate-600 dark:text-slate-400">Published</div>
+                    </div>
+                    <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.totalEngagement}</div>
+                        <div className="text-sm text-slate-600 dark:text-slate-400">Total Engagement</div>
+                    </div>
+                    <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.averageEngagement.toFixed(1)}</div>
+                        <div className="text-sm text-slate-600 dark:text-slate-400">Avg Engagement</div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg">
+                        <h4 className="font-semibold mb-3">Top Categories</h4>
+                        <div className="space-y-2">
+                            {stats.topCategories.map((cat, index) => (
+                                <div key={index} className="flex justify-between items-center">
+                                    <span className="text-sm">{cat.category}</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-16 bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                                            <div
+                                                className="bg-indigo-500 h-2 rounded-full"
+                                                style={{ width: `${(cat.count / Math.max(...stats.topCategories.map(c => c.count))) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                        <span className="text-xs text-slate-500">{cat.count}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg">
+                        <h4 className="font-semibold mb-3">Export/Import</h4>
+                        <div className="space-y-2">
+                            <button
+                                onClick={handleExportData}
+                                className="w-full px-4 py-2 text-sm bg-indigo-500 text-white rounded hover:bg-indigo-600"
+                            >
+                                Export Data UGC
+                            </button>
+                            <button
+                                onClick={handleImportData}
+                                className="w-full px-4 py-2 text-sm bg-slate-500 text-white rounded hover:bg-slate-600"
+                            >
+                                Import Data UGC
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="w-full max-w-6xl mx-auto">
+            <div className="mb-6 border-b border-slate-200 dark:border-slate-700">
+                <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="UGC Tabs">
+                    {[
+                        { id: 'upload', label: 'Upload & Generate', icon: '📤' },
+                        { id: 'optimize', label: 'Optimasi', icon: '⚡' },
+                        { id: 'manage', label: 'Kelola', icon: '📋' },
+                        { id: 'analytics', label: 'Analytics', icon: '📊' }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveUGCTab(tab.id as any)}
+                            className={`flex items-center whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                                activeUGCTab === tab.id
+                                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            <span className="mr-2">{tab.icon}</span> {tab.label}
+                        </button>
+                    ))}
+                </nav>
+            </div>
+
+            {!apiKey && <ApiKeyNotice className="text-sm mb-4 text-center" message="Masukkan API Key di header untuk menggunakan fitur UGC." />}
+
+            {activeUGCTab === 'upload' && <UGCUploadSection />}
+            {activeUGCTab === 'optimize' && <UGCOptimizeSection />}
+            {activeUGCTab === 'manage' && <UGCManageSection />}
+            {activeUGCTab === 'analytics' && <UGCAnalyticsSection />}
+        </div>
+    );
+};
+
 
 const App: React.FC = () => {
   // State Umum
@@ -1153,6 +1538,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('content');
 
+  const toast = useToast();
   // State untuk Generator Konten
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -1226,6 +1612,19 @@ const App: React.FC = () => {
   const [isGeneratingTextImages, setIsGeneratingTextImages] = useState<boolean>(false);
   const [manualText, setManualText] = useState<string>('');
   const [useManualText, setUseManualText] = useState<boolean>(false);
+
+  // State untuk UGC
+  const [ugcContent, setUGCContent] = useState<UGCContent[]>([]);
+  const [contentToOptimize, setContentToOptimize] = useState<string>('');
+  const [contentType, setContentType] = useState<'text' | 'image' | 'video'>('text');
+  const [targetAudience, setTargetAudience] = useState<string>('');
+  const [contentStyle, setContentStyle] = useState<'casual' | 'professional' | 'humorous' | 'inspirational'>('casual');
+  const [currentContent, setCurrentContent] = useState<{title: string; content: string; category: string}>({title: '', content: '', category: ''});
+  const [topic, setTopic] = useState<string>('');
+  const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
+  const [isGeneratingTags, setIsGeneratingTags] = useState<boolean>(false);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [isGeneratingContent, setIsGeneratingContent] = useState<boolean>(false);
 
   // Advanced styling options
   const [backgroundColor, setBackgroundColor] = useState<string>('#ffffff');
@@ -1312,7 +1711,7 @@ const App: React.FC = () => {
   const handleSaveApiKey = () => {
     localStorage.setItem('geminiApiKey', tempApiKey);
     setApiKey(tempApiKey);
-    alert('API Key disimpan!');
+    toast.success('API Key disimpan!');
   };
   
   const handleFileSelect = (selectedFile: File) => {
@@ -1440,12 +1839,14 @@ const App: React.FC = () => {
     const fullText = [editableMetadata.title, editableMetadata.description, editableMetadata.cta, editableMetadata.hashtags].filter(Boolean).join('\n\n');
     navigator.clipboard.writeText(fullText);
     setCopySuccess(true);
+    toast.success('Teks berhasil disalin ke clipboard');
     setTimeout(() => setCopySuccess(false), 2000);
   };
 
   const handleCopyPrompt = (textToCopy: string, setSuccess: (s: boolean) => void) => {
     navigator.clipboard.writeText(textToCopy);
     setSuccess(true);
+    toast.success('Tersalin ke clipboard');
     setTimeout(() => setSuccess(false), 2000);
   };
 
@@ -1617,7 +2018,7 @@ const App: React.FC = () => {
 
   const handleCopyText = (text: string) => {
     navigator.clipboard.writeText(text);
-    // You could add a toast notification here if desired
+    toast.success('Tersalin ke clipboard');
   };
 
   const handleGenerateTextImages = async () => {
@@ -1984,8 +2385,187 @@ Format hasilnya sebagai array JSON dari string yang sudah diformat lengkap.`;
     }
   };
 
+  // UGC Handler Functions
+  const handleOptimizeContent = async () => {
+    if (!contentToOptimize.trim() || !apiKey) return;
+    setIsOptimizing(true);
+    try {
+      const result = await optimizeUGCContent(contentToOptimize, contentType, targetAudience || 'Umum', apiKey);
+      toast.success('Konten berhasil dioptimasi!');
+
+      // Update content if it's from existing UGC
+      if (ugcContent.length > 0) {
+        const updated = ugcContent.map(item =>
+          item.content === contentToOptimize ? {
+            ...item,
+            title: result.optimizedTitle,
+            content: result.optimizedContent,
+            tags: [...new Set([...item.tags, ...result.suggestedHashtags])]
+          } : item
+        );
+        setUGCContent(updated);
+      }
+
+      setContentToOptimize(result.optimizedContent);
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal mengoptimasi konten');
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  const handleGenerateTags = async () => {
+    if (!contentToOptimize.trim() || !apiKey) return;
+    setIsGeneratingTags(true);
+    try {
+      const tags = await suggestUGCTags(contentToOptimize, contentType, apiKey);
+      toast.success(`${tags.length} tag berhasil dihasilkan!`);
+
+      // Update tags for existing content if applicable
+      if (ugcContent.length > 0) {
+        const updated = ugcContent.map(item =>
+          item.content === contentToOptimize ? {
+            ...item,
+            tags: [...new Set([...item.tags, ...tags])]
+          } : item
+        );
+        setUGCContent(updated);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal menghasilkan tag');
+    } finally {
+      setIsGeneratingTags(false);
+    }
+  };
+
+  const handleGenerateContent = async () => {
+    if (!topic.trim() || !apiKey) return;
+    setIsGeneratingContent(true);
+    try {
+      const result = await generateUGCContent(topic, contentType, contentStyle, apiKey);
+
+      const newContent: UGCContent = {
+        id: Date.now().toString(),
+        type: contentType,
+        title: result.title,
+        content: result.content,
+        category: topic,
+        tags: result.suggestedHashtags,
+        createdAt: new Date().toISOString(),
+        status: 'draft',
+        engagement: { likes: 0, shares: 0, comments: 0, views: 0 }
+      };
+
+      setUGCContent([...ugcContent, newContent]);
+      setTopic('');
+      toast.success('Konten UGC berhasil dibuat!');
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal menghasilkan konten UGC');
+    } finally {
+      setIsGeneratingContent(false);
+    }
+  };
+
+  const handleAnalyzePerformance = async () => {
+    if (!contentToOptimize.trim() || !apiKey) return;
+    setIsAnalyzing(true);
+    try {
+      // Get engagement data from existing content or use default
+      const engagement = ugcContent.find(item => item.content === contentToOptimize)?.engagement ||
+                        { likes: 0, shares: 0, comments: 0, views: 0 };
+
+      const result = await analyzeUGCPerformance(contentToOptimize, engagement, contentType, apiKey);
+      toast.success(`Analisis selesai! Score: ${result.performanceScore}/100`);
+
+      // Could show detailed analysis in a modal or toast
+      console.log('Performance Analysis:', result);
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal menganalisis performa');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleExportData = () => {
+    const dataStr = JSON.stringify(ugcContent, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ugc-content-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Data UGC berhasil diekspor!');
+  };
+
+  const handleImportData = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const importedData = JSON.parse(e.target?.result as string);
+            if (Array.isArray(importedData)) {
+              setUGCContent([...ugcContent, ...importedData]);
+              toast.success(`${importedData.length} konten berhasil diimpor!`);
+            }
+          } catch (err) {
+            toast.error('Format file tidak valid');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
+  // Calculate UGC Stats
+  const stats: UGCStats = {
+    totalContent: ugcContent.length,
+    publishedContent: ugcContent.filter(item => item.status === 'published').length,
+    totalEngagement: ugcContent.reduce((sum, item) => sum + (item.engagement?.likes || 0) + (item.engagement?.shares || 0) + (item.engagement?.comments || 0), 0),
+    averageEngagement: ugcContent.length > 0 ? ugcContent.reduce((sum, item) => sum + (item.engagement?.likes || 0) + (item.engagement?.shares || 0) + (item.engagement?.comments || 0), 0) / ugcContent.length : 0,
+    topCategories: Object.entries(
+      ugcContent.reduce((acc: {[key: string]: {count: number; engagement: number}}, item) => {
+        if (!acc[item.category]) {
+          acc[item.category] = { count: 0, engagement: 0 };
+        }
+        acc[item.category].count++;
+        acc[item.category].engagement += (item.engagement?.likes || 0) + (item.engagement?.shares || 0) + (item.engagement?.comments || 0);
+        return acc;
+      }, {} as {[key: string]: {count: number; engagement: number}})
+    ).map(([category, data]: [string, {count: number; engagement: number}]) => ({
+      category,
+      count: data.count,
+      engagement: data.engagement
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+  };
+
   const isAnyActionDisabled = !file || !apiKey;
-  
+
+  const tabs: ActiveTab[] = ['content','quotes','image','videoToVeo','chat','text','textImage','ugc','ugcProduct'];
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const idx = tabs.indexOf(activeTab);
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setActiveTab(tabs[(idx + 1) % tabs.length]);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setActiveTab(tabs[(idx - 1 + tabs.length) % tabs.length]);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setActiveTab(tabs[0]);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setActiveTab(tabs[tabs.length - 1]);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans">
@@ -2003,27 +2583,106 @@ Format hasilnya sebagai array JSON dari string yang sudah diformat lengkap.`;
             <button onClick={handleSaveApiKey} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg">Simpan</button>
           </div>
         </div>
-        <nav className="container mx-auto px-4 flex border-t border-slate-200 dark:border-slate-700/50 overflow-x-auto">
-            <button onClick={() => setActiveTab('content')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'content' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+        <nav role="tablist" aria-label="Tab utama" className="container mx-auto px-4 flex border-t border-slate-200 dark:border-slate-700/50 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('content')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'content'}
+              tabIndex={activeTab === 'content' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'content' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
                 <FacebookIcon className="w-5 h-5 mr-2" /> Generator Konten
             </button>
-            <button onClick={() => setActiveTab('quotes')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'quotes' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+            <button
+              onClick={() => setActiveTab('quotes')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'quotes'}
+              tabIndex={activeTab === 'quotes' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'quotes' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
                 <QuoteIcon className="w-5 h-5 mr-2" /> Generator Kutipan
             </button>
-             <button onClick={() => setActiveTab('image')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'image' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+             <button
+               onClick={() => setActiveTab('image')}
+               onKeyDown={handleTabKeyDown}
+               role="tab"
+               aria-selected={activeTab === 'image'}
+               tabIndex={activeTab === 'image' ? 0 : -1}
+               className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'image' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+             >
                 <ImageIcon className="w-5 h-5 mr-2" /> Generator Gambar
             </button>
-            <button onClick={() => setActiveTab('videoToVeo')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'videoToVeo' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+            <button
+              onClick={() => setActiveTab('videoToVeo')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'videoToVeo'}
+              tabIndex={activeTab === 'videoToVeo' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'videoToVeo' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
                 <VideoIcon className="w-5 h-5 mr-2" /> Prompt Video VEO
             </button>
-            <button onClick={() => setActiveTab('chat')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'chat' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+            <button
+              onClick={() => setActiveTab('chat')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'chat'}
+              tabIndex={activeTab === 'chat' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'chat' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
                 <ChatBubbleIcon className="w-5 h-5 mr-2" /> Asisten AI
             </button>
-            <button onClick={() => setActiveTab('text')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'text' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+            <button
+              onClick={() => setActiveTab('text')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'text'}
+              tabIndex={activeTab === 'text' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'text' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
                 <QuoteIcon className="w-5 h-5 mr-2" /> Generator Teks
             </button>
-            <button onClick={() => setActiveTab('textImage')} className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'textImage' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+            <button
+              onClick={() => setActiveTab('textImage')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'textImage'}
+              tabIndex={activeTab === 'textImage' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'textImage' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
                 <ImageIcon className="w-5 h-5 mr-2" /> Gambar Teks
+            </button>
+            <button
+              onClick={() => setActiveTab('ugc')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'ugc'}
+              tabIndex={activeTab === 'ugc' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'ugc' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
+                <UGCIcon className="w-5 h-5 mr-2" /> Konten UGC
+            </button>
+            <button
+              onClick={() => setActiveTab('ugcProduct')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'ugcProduct'}
+              tabIndex={activeTab === 'ugcProduct' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'ugcProduct' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
+                <UGCIcon className="w-5 h-5 mr-2" /> UGC Produk
+            </button>
+            <button
+              onClick={() => setActiveTab('spiritual')}
+              onKeyDown={handleTabKeyDown}
+              role="tab"
+              aria-selected={activeTab === 'spiritual'}
+              tabIndex={activeTab === 'spiritual' ? 0 : -1}
+              className={`flex-shrink-0 flex items-center px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'spiritual' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+            >
+                <HeartIcon className="w-5 h-5 mr-2" /> Konten Spiritual
             </button>
         </nav>
       </header>
@@ -2082,6 +2741,17 @@ Format hasilnya sebagai array JSON dari string yang sudah diformat lengkap.`;
             textAlignment, setTextAlignment, textPosition, setTextPosition, showTextBox, setShowTextBox,
             textBoxPadding, setTextBoxPadding, textBoxRadius, setTextBoxRadius, textBoxShadow, setTextBoxShadow
         }} />}
+
+        {activeTab === 'ugc' && <UGCGenerator {...{
+            apiKey, ugcContent, setUGCContent, isOptimizing, handleOptimizeContent,
+            isGeneratingTags, handleGenerateTags, isAnalyzing, handleAnalyzePerformance,
+            contentToOptimize, setContentToOptimize, contentType, setContentType,
+            targetAudience, setTargetAudience, contentStyle, setContentStyle,
+            currentContent, setCurrentContent, isGeneratingContent, handleGenerateContent,
+            topic, setTopic, stats, handleExportData, handleImportData
+        }} />}
+        {activeTab === 'ugcProduct' && <UGCProductGenerator apiKey={apiKey} />}
+        {activeTab === 'spiritual' && <SpiritualContentGenerator apiKey={apiKey} />}
 
       </main>
     </div>

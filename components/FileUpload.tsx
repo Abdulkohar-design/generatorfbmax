@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { UploadIcon } from './icons';
+import { useToast } from './ToastProvider';
 
 interface FileUploadProps {
   id: string;
@@ -11,6 +12,7 @@ interface FileUploadProps {
 
 export const FileUpload: React.FC<FileUploadProps> = ({ id, onFileSelect, previewUrl, isLoading, file }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const toast = useToast();
 
   const handleFileChange = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -18,7 +20,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ id, onFileSelect, previe
       if (selectedFile.type.startsWith('image/') || selectedFile.type.startsWith('video/')) {
         onFileSelect(selectedFile);
       } else {
-        alert("Silakan unggah file gambar atau video (misalnya, JPG, PNG, MP4, MOV).");
+        toast.error('Silakan unggah file gambar atau video (misalnya, JPG, PNG, MP4, MOV).');
       }
     }
   };
