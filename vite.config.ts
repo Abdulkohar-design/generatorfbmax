@@ -6,5 +6,10 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true
+  },
+  preview: {
+    allowedHosts: [
+      'generatorfbmax-1.onrender.com'
+    ]
   }
 });
